@@ -48,6 +48,8 @@ defmodule Xandra.Connection do
         }
 
         with {:ok, supported_options} <- Utils.request_options(transport, socket),
+             {:ok, protocol_version} <- select_protocol_version(supported_options),
+             state <- Map.put(state, :protocol_version, protocol_version),
              :ok <- startup_connection(transport, socket, supported_options, compressor, options) do
           {:ok, state}
         else
@@ -183,6 +185,21 @@ defmodule Xandra.Connection do
 
       {:error, %ConnectionError{reason: reason}} ->
         {:disconnect, ConnectionError.new("ping", reason), state}
+    end
+  end
+
+  def select_protocol_version(supported_options) do
+    supported_protocols = Map.get(supported_options, "PROTOCOL_VERSIONS", ["3/v3"])
+
+    supported_versions =
+      supported_protocols
+      |> Enum.map(&String.split(&1, "/"))
+      |> Enum.map(&Kernel.hd/1)
+
+    cond do
+      # "4" in supported_versions -> {:ok, 4}
+      "3" in supported_versions -> {:ok, 3}
+      true -> {:error, {:unsupported_protocol_version, supported_versions}}
     end
   end
 
