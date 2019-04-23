@@ -50,7 +50,15 @@ defmodule Xandra.Connection do
         with {:ok, supported_options} <- Utils.request_options(transport, socket),
              {:ok, protocol_version} <- select_protocol_version(supported_options),
              state <- Map.put(state, :protocol_version, protocol_version),
-             :ok <- startup_connection(transport, socket, supported_options, compressor, options) do
+             :ok <-
+               startup_connection(
+                 transport,
+                 socket,
+                 supported_options,
+                 protocol_version,
+                 compressor,
+                 options
+               ) do
           {:ok, state}
         else
           {:error, reason} = error ->
@@ -212,7 +220,14 @@ defmodule Xandra.Connection do
     Prepared.Cache.lookup(state.prepared_cache, prepared)
   end
 
-  defp startup_connection(transport, socket, supported_options, compressor, options) do
+  defp startup_connection(
+         transport,
+         socket,
+         supported_options,
+         protocol_version,
+         compressor,
+         options
+       ) do
     %{
       "CQL_VERSION" => [cql_version | _],
       "COMPRESSION" => supported_compression_algorithms
@@ -226,6 +241,15 @@ defmodule Xandra.Connection do
       if compression_algorithm in supported_compression_algorithms do
         requested_options = Map.put(requested_options, "COMPRESSION", compression_algorithm)
         Utils.startup_connection(transport, socket, requested_options, compressor, options)
+
+        Utils.startup_connection(
+          transport,
+          socket,
+          requested_options,
+          protocol_version,
+          compressor,
+          options
+        )
       else
         {:error,
          ConnectionError.new(
@@ -234,7 +258,14 @@ defmodule Xandra.Connection do
          )}
       end
     else
-      Utils.startup_connection(transport, socket, requested_options, compressor, options)
+      Utils.startup_connection(
+        transport,
+        socket,
+        requested_options,
+        protocol_version,
+        compressor,
+        options
+      )
     end
   end
 

@@ -37,9 +37,16 @@ defmodule Xandra.Connection.Utils do
     end
   end
 
-  @spec startup_connection(:gen_tcp | :ssl, term, map, nil | module) ::
+  @spec startup_connection(:gen_tcp | :ssl, term, map, integer, nil | module, list) ::
           :ok | {:error, ConnectionError.t()}
-  def startup_connection(transport, socket, requested_options, compressor \\ nil, options \\ [])
+  def startup_connection(
+        transport,
+        socket,
+        requested_options,
+        protocol_version,
+        compressor \\ nil,
+        options \\ []
+      )
       when is_map(requested_options) and is_atom(compressor) do
     # We have to encode the STARTUP frame without compression as in this frame
     # we tell the server which compression algorithm we want to use.
