@@ -16,7 +16,8 @@ defmodule Xandra.Connection do
     :prepared_cache,
     :compressor,
     :default_consistency,
-    :atom_keys?
+    :atom_keys?,
+    :protocol_version
   ]
 
   @impl true
