@@ -10,7 +10,7 @@ defmodule Xandra.Frame do
   @type t(kind) :: %__MODULE__{kind: kind}
   @type t :: t(kind)
 
-  @request_version 0x03
+  @request_version 0x04
 
   @request_opcodes %{
     :startup => 0x01,
@@ -23,7 +23,7 @@ defmodule Xandra.Frame do
     :auth_response => 0x0F
   }
 
-  @response_version 0x83
+  @response_version 0x84
 
   @response_opcodes %{
     0x00 => :error,
