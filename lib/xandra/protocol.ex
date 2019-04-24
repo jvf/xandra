@@ -601,7 +601,7 @@ defmodule Xandra.Protocol do
        ) do
     atom_keys? = Keyword.fetch!(options, :atom_keys?)
     decode_string(id <- buffer)
-    {%{columns: bound_columns}, buffer} = decode_metadata(buffer, %Page{}, atom_keys?)
+    {%{columns: bound_columns}, buffer} = decode_metadata_prepared(buffer, %Page{}, atom_keys?)
     {%{columns: result_columns}, <<>>} = decode_metadata(buffer, %Page{}, atom_keys?)
     %{prepared | id: id, bound_columns: bound_columns, result_columns: result_columns}
   end
@@ -668,6 +668,34 @@ defmodule Xandra.Protocol do
     %{keyspace: keyspace, subject: subject}
   end
 
+  # v4 only
+  defp decode_metadata_prepared(
+         <<flags::4-bytes, column_count::32-signed, pk_count::32-signed, buffer::bits>>,
+         page,
+         atom_keys?
+       ) do
+    <<_::31, global_table_spec::1>> = flags
+
+    # partition key bind indices are ignored as we do not support token-aware routing
+    {_indices, buffer} = decode_pk_index(buffer, pk_count, [])
+
+    cond do
+      global_table_spec == 1 ->
+        decode_string(keyspace <- buffer)
+        decode_string(table <- buffer)
+
+        {columns, buffer} =
+          decode_columns(buffer, column_count, {keyspace, table}, atom_keys?, [])
+
+        {%{page | columns: columns}, buffer}
+
+      true ->
+        {columns, buffer} = decode_columns(buffer, column_count, nil, atom_keys?, [])
+        {%{page | columns: columns}, buffer}
+    end
+  end
+
+  # v3
   defp decode_metadata(
          <<flags::4-bytes, column_count::32-signed, buffer::bits>>,
          page,
@@ -693,6 +721,15 @@ defmodule Xandra.Protocol do
         {columns, buffer} = decode_columns(buffer, column_count, nil, atom_keys?, [])
         {%{page | columns: columns}, buffer}
     end
+  end
+
+  # pk = partition key
+  def decode_pk_index(buffer, 0, acc) do
+    {Enum.reverse(acc), buffer}
+  end
+
+  def decode_pk_index(<<index::16-unsigned, buffer::bits>>, pk_count, acc) do
+    decode_pk_index(buffer, pk_count - 1, [index | acc])
   end
 
   defp decode_paging_state(<<buffer::bits>>, page, 0) do
