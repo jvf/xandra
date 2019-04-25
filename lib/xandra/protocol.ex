@@ -598,7 +598,7 @@ defmodule Xandra.Protocol do
     %Xandra.Void{}
   end
 
-  # Page
+  # Page ("Rows" in native protocol specs)
   defp decode_result_response(<<0x0002::32-signed, buffer::bits>>, query, options) do
     page = new_page(query)
     {page, buffer} = decode_metadata(buffer, page, Keyword.fetch!(options, :atom_keys?))
@@ -698,7 +698,6 @@ defmodule Xandra.Protocol do
     %{keyspace: keyspace, subject: subject, arguments: values}
   end
 
-
   # v4 only
   defp decode_metadata_prepared(
          <<flags::4-bytes, column_count::32-signed, pk_count::32-signed, buffer::bits>>,
@@ -726,7 +725,8 @@ defmodule Xandra.Protocol do
     end
   end
 
-  # v3
+  # v3 and v4
+  # this is the metadate format from the "Rows" result response in the protocol specs
   defp decode_metadata(
          <<flags::4-bytes, column_count::32-signed, buffer::bits>>,
          page,
