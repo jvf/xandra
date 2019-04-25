@@ -48,7 +48,7 @@ defmodule Xandra.Connection do
         }
 
         with {:ok, supported_options} <- Utils.request_options(transport, socket),
-             {:ok, protocol_version} <- select_protocol_version(supported_options),
+             {:ok, protocol_version} <- Utils.select_protocol_version(supported_options),
              state <- Map.put(state, :protocol_version, protocol_version),
              :ok <-
                startup_connection(

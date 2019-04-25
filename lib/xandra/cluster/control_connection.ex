@@ -20,6 +20,7 @@ defmodule Xandra.Cluster.ControlConnection do
     :transport_options,
     :socket,
     :options,
+    :protocol_version,
     new: true,
     buffer: <<>>
   ]
@@ -53,7 +54,8 @@ defmodule Xandra.Cluster.ControlConnection do
         state = %{state | socket: socket}
 
         with {:ok, supported_options} <- Utils.request_options(state.transport, socket),
-             :ok <- startup_connection(state.transport, socket, supported_options, options),
+             {:ok, protocol_version} <- Utils.select_protocol_version(supported_options),
+             :ok <- startup_connection(state.transport, socket, supported_options, 4, options),
              :ok <- register_to_events(state.transport, socket),
              :ok <- inet_mod(state.transport).setopts(socket, active: true),
              {:ok, state} <- report_active(state) do
@@ -101,10 +103,10 @@ defmodule Xandra.Cluster.ControlConnection do
     end
   end
 
-  defp startup_connection(transport, socket, supported_options, options) do
+  defp startup_connection(transport, socket, supported_options, protocol_version, options) do
     %{"CQL_VERSION" => [cql_version | _]} = supported_options
     requested_options = %{"CQL_VERSION" => cql_version}
-    Utils.startup_connection(transport, socket, requested_options, nil, options)
+    Utils.startup_connection(transport, socket, requested_options, protocol_version, nil, options)
   end
 
   defp register_to_events(transport, socket) do
