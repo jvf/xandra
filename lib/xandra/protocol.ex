@@ -608,6 +608,7 @@ defmodule Xandra.Protocol do
 
   # SchemaChange
   defp decode_result_response(<<0x0005::32-signed, buffer::bits>>, _query, _options) do
+    # effect = "change_type" in native protocol spec
     decode_string(effect <- buffer)
     decode_string(target <- buffer)
     options = decode_change_options(buffer, target)
@@ -667,6 +668,16 @@ defmodule Xandra.Protocol do
     <<>> = buffer
     %{keyspace: keyspace, subject: subject}
   end
+
+  # v4 only
+  defp decode_change_options(<<buffer::bits>>, target) when target in ["FUNCTION", "AGGREGATE"] do
+    decode_string(keyspace <- buffer)
+    decode_string(subject <- buffer)
+    {values, buffer} = decode_string_list(buffer)
+    <<>> = buffer
+    %{keyspace: keyspace, subject: subject, arguments: values}
+  end
+
 
   # v4 only
   defp decode_metadata_prepared(
@@ -1013,18 +1024,22 @@ defmodule Xandra.Protocol do
     {:inet, buffer}
   end
 
+  # v4 only
   defp decode_type(<<0x0011::16, buffer::bits>>) do
     {:date, buffer}
   end
 
+  # v4 only
   defp decode_type(<<0x0012::16, buffer::bits>>) do
     {:time, buffer}
   end
 
+  # v4 only
   defp decode_type(<<0x0013::16, buffer::bits>>) do
     {:smallint, buffer}
   end
 
+  # v4 only
   defp decode_type(<<0x0014::16, buffer::bits>>) do
     {:tinyint, buffer}
   end
@@ -1056,6 +1071,7 @@ defmodule Xandra.Protocol do
     decode_type_tuple(buffer, count, [])
   end
 
+  # v3 only (I think)
   custom_types = %{
     "org.apache.cassandra.db.marshal.SimpleDateType" => :date,
     "org.apache.cassandra.db.marshal.ShortType" => :smallint,

@@ -1,4 +1,4 @@
-ExUnit.start()
+ExUnit.start(exclude: [:udf])
 
 defmodule XandraTest.IntegrationCase do
   use ExUnit.CaseTemplate
