@@ -15,6 +15,8 @@ defmodule Xandra.Protocol do
 
   alias Xandra.Cluster.StatusChange
 
+  require Logger
+
   @unix_epoch_days 0x80000000
 
   # We need these two macros to make
@@ -559,12 +561,28 @@ defmodule Xandra.Protocol do
   end
 
   def decode_response(
-        %Frame{kind: :result, body: body, atom_keys?: atom_keys?},
+        %Frame{kind: :result, body: body, atom_keys?: atom_keys?, warning: warning?},
         %kind{} = query,
         options
       )
       when kind in [Simple, Prepared, Batch] do
+    body = decode_warnings(body, query, warning?)
     decode_result_response(body, query, Keyword.put(options, :atom_keys?, atom_keys?))
+  end
+
+  defp decode_warnings(body, _query, false) do
+    body
+  end
+
+  defp decode_warnings(body, query, true) do
+    {warnings, body} = decode_string_list(body)
+
+    case warnings do
+      [warning] -> Logger.warn("Warning on #{inspect(query)}: #{inspect(warning)}")
+      warnings -> Logger.warn("Warnings on #{inspect(query)}: #{inspect(warnings)}")
+    end
+
+    body
   end
 
   defp decode_inet(<<size, data::size(size)-bytes, buffer::bits>>) do

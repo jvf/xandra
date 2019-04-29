@@ -1,7 +1,7 @@
 defmodule Xandra.Frame do
   @moduledoc false
 
-  defstruct [:kind, :body, stream_id: 0, tracing: false, atom_keys?: false]
+  defstruct [:kind, :body, stream_id: 0, tracing: false, atom_keys?: false, warning: false]
 
   use Bitwise
 
@@ -68,8 +68,9 @@ defmodule Xandra.Frame do
       when is_binary(body) and is_atom(compressor) do
     <<@response_version, flags, _stream_id::16, opcode, _::32>> = header
     kind = Map.fetch!(@response_opcodes, opcode)
+    warning? = flag_set?(flags, _waning = 0x08)
     body = maybe_decompress_body(flag_set?(flags, _compression = 0x01), compressor, body)
-    %__MODULE__{kind: kind, body: body}
+    %__MODULE__{kind: kind, body: body, warning: warning?}
   end
 
   defp encode_flags(_compressor = nil, _tracing? = false), do: 0x00

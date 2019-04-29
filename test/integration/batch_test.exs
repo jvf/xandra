@@ -1,6 +1,8 @@
 defmodule BatchTest do
   use XandraTest.IntegrationCase
 
+  import ExUnit.CaptureLog
+
   alias Xandra.{Batch, Error, Void}
 
   setup_all %{keyspace: keyspace, start_options: start_options} do
@@ -52,6 +54,47 @@ defmodule BatchTest do
     assert Enum.to_list(result) == [
              %{"name" => "Rick"},
              %{"name" => "Morty"}
+           ]
+  end
+
+  # v4 only
+  test "batch of type \"unlogged\" producing warning in v4", %{conn: conn} do
+    # batches spanning more than `unlogged_batch_across_partitions_warn_threshold` (default: 10)
+    #   partitions generate a warning
+    batch =
+      Batch.new(:unlogged)
+      |> Batch.add("INSERT INTO users (id, name) VALUES (1, 'Rick')")
+      |> Batch.add("INSERT INTO users (id, name) VALUES (2, 'Morty')")
+      |> Batch.add("INSERT INTO users (id, name) VALUES (3, 'Beth')")
+      |> Batch.add("INSERT INTO users (id, name) VALUES (4, 'Jerry')")
+      |> Batch.add("INSERT INTO users (id, name) VALUES (5, 'Summer')")
+      |> Batch.add("INSERT INTO users (id, name) VALUES (6, 'Jessica')")
+      |> Batch.add("INSERT INTO users (id, name) VALUES (7, 'Gene')")
+      |> Batch.add("INSERT INTO users (id, name) VALUES (8, 'Feratu')")
+      |> Batch.add("INSERT INTO users (id, name) VALUES (9, 'Brad')")
+      |> Batch.add("INSERT INTO users (id, name) VALUES (10, 'Ethan')")
+      |> Batch.add("INSERT INTO users (id, name) VALUES (11, 'Nancy')")
+
+    assert capture_log(fn -> assert {:ok, %Void{}} = Xandra.execute(conn, batch) end) =~
+             "Unlogged batch covering 11 partitions detected"
+
+    result =
+      Xandra.execute!(conn, "SELECT name FROM users")
+      |> Enum.flat_map(&Map.values/1)
+      |> Enum.sort()
+
+    assert result == [
+             "Beth",
+             "Brad",
+             "Ethan",
+             "Feratu",
+             "Gene",
+             "Jerry",
+             "Jessica",
+             "Morty",
+             "Nancy",
+             "Rick",
+             "Summer"
            ]
   end
 
