@@ -511,6 +511,7 @@ defmodule Xandra.Protocol do
     0x1003 => :truncate_failure,
     0x1100 => :write_timeout,
     0x1200 => :read_timeout,
+    0x1300 => :read_failure,
     0x2000 => :invalid_syntax,
     0x2100 => :unauthorized,
     0x2200 => :invalid,
