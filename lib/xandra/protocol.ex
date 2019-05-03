@@ -311,6 +311,11 @@ defmodule Xandra.Protocol do
     <<-1::32>>
   end
 
+  # v4 only
+  defp encode_query_value(_type, :unset) do
+    <<-2::32>>
+  end
+
   defp encode_query_value(type, value) do
     acc = encode_value(type, value)
     [<<IO.iodata_length(acc)::32>>, acc]

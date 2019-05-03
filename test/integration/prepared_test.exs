@@ -61,6 +61,37 @@ defmodule PreparedTest do
     assert Enum.to_list(page) == [%{"[applied]" => false, "code" => 3, "name" => "Nelson"}]
   end
 
+  test "unset values in prepared statements", %{conn: conn} do
+    statement = "CREATE TABLE cars (id int PRIMARY KEY, name text)"
+    Xandra.execute!(conn, statement)
+
+    statement = "INSERT INTO cars (id, name) VALUES (?, ?)"
+    assert {:ok, prepared} = Xandra.prepare(conn, statement)
+    assert {:ok, %Xandra.Void{}} = Xandra.execute(conn, prepared, [1, "Tesla"])
+    assert {:ok, %Xandra.Void{}} = Xandra.execute(conn, prepared, [2, "BMW"])
+    assert {:ok, %Xandra.Void{}} = Xandra.execute(conn, prepared, [3, "T3"])
+
+    assert {:ok, page} = Xandra.execute(conn, "SELECT id, name FROM cars")
+
+    assert Enum.to_list(page) == [
+             %{"id" => 1, "name" => "Tesla"},
+             %{"id" => 2, "name" => "BMW"},
+             %{"id" => 3, "name" => "T3"}
+           ]
+
+    assert {:ok, %Xandra.Void{}} = Xandra.execute(conn, prepared, [1, "Mercedes"])
+    assert {:ok, %Xandra.Void{}} = Xandra.execute(conn, prepared, [2, nil])
+    assert {:ok, %Xandra.Void{}} = Xandra.execute(conn, prepared, [3, :unset])
+
+    assert {:ok, page} = Xandra.execute(conn, "SELECT id, name FROM cars")
+
+    assert Enum.to_list(page) == [
+             %{"id" => 1, "name" => "Mercedes"},
+             %{"id" => 2, "name" => nil},
+             %{"id" => 3, "name" => "T3"}
+           ]
+  end
+
   test "inspecting prepared queries", %{conn: conn} do
     prepared = Xandra.prepare!(conn, "SELECT * FROM users")
     assert inspect(prepared) == ~s(#Xandra.Prepared<"SELECT * FROM users">)
