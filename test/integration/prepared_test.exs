@@ -92,6 +92,36 @@ defmodule PreparedTest do
            ]
   end
 
+  test "unset values in prepared statements 2", %{conn: conn} do
+    Xandra.execute!(conn, "DROP TABLE IF EXISTS towns")
+    statement = "CREATE TABLE towns (id int PRIMARY KEY, name text, location text)"
+    Xandra.execute!(conn, statement)
+
+    statement = "INSERT INTO towns (id, name, location) VALUES (?, ?, ?)"
+    assert {:ok, prepared} = Xandra.prepare(conn, statement)
+
+    for i <- 1..100 do
+      assert {:ok, %Xandra.Void{}} = Xandra.execute(conn, prepared, [i, "town#{i}", :unset])
+    end
+  end
+
+  test "unset values in simple statements", %{conn: conn} do
+    Xandra.execute!(conn, "DROP TABLE IF EXISTS towns")
+    statement = "CREATE TABLE towns (id int PRIMARY KEY, name text, location text)"
+    Xandra.execute!(conn, statement)
+
+    statement = "INSERT INTO towns (id, name, location) VALUES (?, ?, ?)"
+
+    for i <- 1..100 do
+      assert {:ok, %Xandra.Void{}} =
+               Xandra.execute(conn, statement, [
+                 {"int", i},
+                 {"text", "simple_town#{i}"},
+                 {"text", :unset}
+               ])
+    end
+  end
+
   test "inspecting prepared queries", %{conn: conn} do
     prepared = Xandra.prepare!(conn, "SELECT * FROM users")
     assert inspect(prepared) == ~s(#Xandra.Prepared<"SELECT * FROM users">)
