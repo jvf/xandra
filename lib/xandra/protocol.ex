@@ -517,6 +517,7 @@ defmodule Xandra.Protocol do
     0x1100 => :write_timeout,
     0x1200 => :read_timeout,
     0x1300 => :read_failure,
+    0x1400 => :function_failure,
     0x2000 => :invalid_syntax,
     0x2100 => :unauthorized,
     0x2200 => :invalid,
@@ -529,6 +530,15 @@ defmodule Xandra.Protocol do
     defp decode_error_reason(<<unquote(code)::32-signed, buffer::bytes>>) do
       {unquote(reason), buffer}
     end
+  end
+
+  defp decode_error_message(:function_failure, buffer) do
+    decode_string(message <- buffer)
+    decode_string(_keyspace <- buffer)
+    decode_string(_function_name <- buffer)
+    {_arg_types, buffer} = decode_string_list(buffer)
+    <<>> = buffer
+    message
   end
 
   defp decode_error_message(_reason, buffer) do

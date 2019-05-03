@@ -64,6 +64,23 @@ defmodule ErrorsTest do
            end) =~ "Read 0 live rows and 100001 tombstone cells"
   end
 
+  @tag :udf
+  test "function_failure error", %{conn: conn} do
+    statement = """
+    CREATE FUNCTION thrower (x int) CALLED ON NULL INPUT
+    RETURNS int LANGUAGE java AS 'throw new RuntimeException();'
+    """
+
+    assert {:ok, result} = Xandra.execute(conn, statement)
+    assert {:error, reason} = Xandra.execute(conn, "SELECT thrower(code) FROM users")
+
+    assert %Xandra.Error{
+      message:
+        "execution of 'xandra_test_preparedtest.thrower[int]' failed: java.lang.RuntimeException",
+      reason: :function_failure
+    }
+  end
+
   test "errors are raised from bang! functions", %{conn: conn} do
     assert_raise Error, fn -> Xandra.prepare!(conn, "") end
     assert_raise Error, fn -> Xandra.execute!(conn, "USE unknown") end
