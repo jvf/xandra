@@ -10,14 +10,15 @@ defmodule Xandra.Batch do
   alias Xandra.{Prepared, Simple}
 
   @enforce_keys [:type]
-  defstruct @enforce_keys ++ [queries: [], default_consistency: nil]
+  defstruct @enforce_keys ++ [queries: [], default_consistency: nil, protocol_version: nil]
 
   @type type :: :logged | :unlogged | :counter
 
   @opaque t(type) :: %__MODULE__{
             type: type,
             queries: [Simple.t() | Prepared.t()],
-            default_consistency: atom() | nil
+            default_consistency: atom() | nil,
+            protocol_version: :v3 | :v4 | nil
           }
 
   @type t() :: t(type)
