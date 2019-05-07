@@ -98,6 +98,10 @@ defmodule Xandra.Batch do
       batch
     end
 
+    def encode(%@for{protocol_version: nil}, _values, _options) do
+      throw(Xandra.ConnectionError.new("encode", "missing protocol version"))
+    end
+
     def encode(batch, nil, options) do
       batch = %{batch | queries: Enum.reverse(batch.queries)}
 

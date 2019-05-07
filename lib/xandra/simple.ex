@@ -17,6 +17,10 @@ defmodule Xandra.Simple do
       query
     end
 
+    def encode(%@for{protocol_version: nil}, _values, _options) do
+      throw(Xandra.ConnectionError.new("encode", "missing protocol version"))
+    end
+
     def encode(query, values, options) do
       Frame.new(:query)
       |> Protocol.encode_request(%{query | values: values}, options)
