@@ -117,9 +117,13 @@ defmodule Xandra.Connection do
     {:ok, state}
   end
 
+  # prepare query at Cassandra node
   @impl true
-  def handle_prepare(%Prepared{} = prepared, options, %__MODULE__{socket: socket} = state) do
+  def handle_prepare(%Prepared{} = prepared, options, %__MODULE__{} = state) do
+    # IO.inspect([prepared: prepared], label: "Connection.handle_prepare")
+    %__MODULE__{socket: socket, protocol_version: protocol_version} = state
     prepared = %{prepared | default_consistency: state.default_consistency}
+    prepared = Map.put(prepared, :protocol_version, protocol_version)
 
     force? = Keyword.get(options, :force, false)
     compressor = assert_valid_compressor(state.compressor, options[:compressor])
@@ -151,14 +155,18 @@ defmodule Xandra.Connection do
     end
   end
 
-  def handle_prepare(%Simple{} = simple, _options, state) do
+  # local preparation: inject the protocol version
+  def handle_prepare(%Simple{} = simple, _options, %__MODULE__{} = state) do
+    %__MODULE__{protocol_version: protocol_version} = state
     simple = %{simple | default_consistency: state.default_consistency}
-    {:ok, simple, state}
+    {:ok, Map.put(simple, :protocol_version, protocol_version), state}
   end
 
-  def handle_prepare(%Batch{} = batch, _options, state) do
+  # local preparation: inject the protocol version
+  def handle_prepare(%Batch{} = batch, _options, %__MODULE__{} = state) do
+    %__MODULE__{protocol_version: protocol_version} = state
     batch = %{batch | default_consistency: state.default_consistency}
-    {:ok, batch, state}
+    {:ok, Map.put(batch, :protocol_version, protocol_version), state}
   end
 
   @impl true
