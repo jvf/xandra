@@ -1,7 +1,7 @@
 defmodule Xandra.Connection.Utils do
   @moduledoc false
 
-  alias Xandra.{ConnectionError, Frame, Protocol}
+  alias Xandra.{ConnectionError, Error, Frame, Protocol}
 
   @spec recv_frame(:gen_tcp | :ssl, term, nil | module) ::
           {:ok, Frame.t()} | {:error, :closed | :inet.posix()}
@@ -22,18 +22,39 @@ defmodule Xandra.Connection.Utils do
 
   @spec request_options(:gen_tcp | :ssl, term, nil | module) ::
           {:ok, term} | {:error, ConnectionError.t()}
-  def request_options(transport, socket, compressor \\ nil) do
+  def request_options(transport, socket, protocol_version, compressor \\ nil) do
     payload =
       Frame.new(:options)
       |> Protocol.encode_request(nil)
-      |> Frame.encode()
+      |> Frame.encode(protocol_version)
 
     with :ok <- transport.send(socket, payload),
-         {:ok, %Frame{} = frame} <- recv_frame(transport, socket, compressor) do
-      {:ok, Protocol.decode_response(frame)}
+         {:ok, %Frame{} = frame} <- recv_frame(transport, socket, compressor),
+         %{"CQL_VERSION" => _} = response <- Protocol.decode_response(frame) do
+      {:ok, response}
     else
       {:error, reason} ->
         {:error, ConnectionError.new("request options", reason)}
+
+      %Error{} = error ->
+        {:error, ConnectionError.new("request options", error)}
+    end
+  end
+
+  @spec select_protocol_version([String.t()]) ::
+          {:ok, integer()} | {:error, {:unsupported_protocol_version, String.t()}}
+  def select_protocol_version(supported_options) do
+    supported_protocols = Map.get(supported_options, "PROTOCOL_VERSIONS", ["3/v3"])
+
+    supported_versions =
+      supported_protocols
+      |> Enum.map(&String.split(&1, "/"))
+      |> Enum.map(&Kernel.hd/1)
+
+    cond do
+      "4" in supported_versions -> {:ok, 4}
+      "3" in supported_versions -> {:ok, 3}
+      true -> {:error, {:unsupported_protocol_version, supported_protocols}}
     end
   end
 
@@ -53,7 +74,7 @@ defmodule Xandra.Connection.Utils do
     payload =
       Frame.new(:startup)
       |> Protocol.encode_request(requested_options)
-      |> Frame.encode()
+      |> Frame.encode(protocol_version)
 
     # However, we need to pass the compressor module around when we
     # receive the response to this frame because if we said we want to use
@@ -65,7 +86,23 @@ defmodule Xandra.Connection.Utils do
           :ok
 
         %Frame{kind: :authenticate} ->
-          authenticate_connection(transport, socket, requested_options, compressor, options)
+          authenticate_connection(
+            transport,
+            socket,
+            requested_options,
+            protocol_version,
+            compressor,
+            options
+          )
+
+        %Frame{kind: :error} ->
+          # errors like
+          # %Xandra.Error{
+          #   message: "Invalid message version. Got 4/v4 but previous messages on this connection had version 3/v3",
+          #   reason: :protocol_violation
+          # }
+          error = %Error{} = Protocol.decode_response(frame)
+          raise error
 
         _ ->
           raise "protocol violation, got unexpected frame: #{inspect(frame)}"
@@ -76,28 +113,18 @@ defmodule Xandra.Connection.Utils do
     end
   end
 
-  @spec select_protocol_version([String.t()]) ::
-          {:ok, integer()} | {:error, {:unsupported_protocol_version, String.t()}}
-  def select_protocol_version(supported_options) do
-    supported_protocols = Map.get(supported_options, "PROTOCOL_VERSIONS", ["3/v3"])
-
-    supported_versions =
-      supported_protocols
-      |> Enum.map(&String.split(&1, "/"))
-      |> Enum.map(&Kernel.hd/1)
-
-    cond do
-      # "4" in supported_versions -> {:ok, 4}
-      "3" in supported_versions -> {:ok, 3}
-      true -> {:error, {:unsupported_protocol_version, supported_protocols}}
-    end
-  end
-
-  defp authenticate_connection(transport, socket, requested_options, compressor, options) do
+  defp authenticate_connection(
+         transport,
+         socket,
+         requested_options,
+         protocol_version,
+         compressor,
+         options
+       ) do
     payload =
       Frame.new(:auth_response)
       |> Protocol.encode_request(requested_options, options)
-      |> Frame.encode()
+      |> Frame.encode(protocol_version)
 
     with :ok <- transport.send(socket, payload),
          {:ok, frame} <- recv_frame(transport, socket, compressor) do

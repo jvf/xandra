@@ -1,4 +1,10 @@
-ExUnit.start(exclude: [:udf, :slow])
+excluded_protocol_version =
+  case System.get_env("CASSANDRA_NATIVE_PROTOCOL") || "3" do
+    "4" -> 3
+    "3" -> 4
+  end
+
+ExUnit.start(exclude: [:udf, :slow, protocol_version: excluded_protocol_version])
 
 defmodule XandraTest.IntegrationCase do
   use ExUnit.CaseTemplate
@@ -24,9 +30,11 @@ defmodule XandraTest.IntegrationCase do
   end
 
   setup %{keyspace: keyspace, start_options: start_options} do
+    protocol_version = (System.get_env("CASSANDRA_NATIVE_PROTOCOL") || "3") |> String.to_integer()
+    start_options = Keyword.put(start_options, :protocol_version, protocol_version)
     {:ok, conn} = Xandra.start_link(start_options)
     Xandra.execute!(conn, "USE #{keyspace}")
-    %{conn: conn}
+    %{conn: conn, protocol_version: protocol_version}
   end
 
   def setup_keyspace(keyspace, start_options) do

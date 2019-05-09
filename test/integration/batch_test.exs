@@ -57,7 +57,7 @@ defmodule BatchTest do
            ]
   end
 
-  # v4 only
+  @tag protocol_version: 4
   test "batch of type \"unlogged\" producing warning in v4", %{conn: conn} do
     # batches spanning more than `unlogged_batch_across_partitions_warn_threshold` (default: 10)
     #   partitions generate a warning

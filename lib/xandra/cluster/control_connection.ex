@@ -49,14 +49,24 @@ defmodule Xandra.Cluster.ControlConnection do
   end
 
   def connect(_action, %__MODULE__{address: address, port: port, options: options} = state) do
+    protocol_version = Keyword.fetch!(options, :protocol_version)
+    state = Map.put(state, :protocol_version, protocol_version)
+
     case state.transport.connect(address, port, state.transport_options, @default_timeout) do
       {:ok, socket} ->
         state = %{state | socket: socket}
 
-        with {:ok, supported_options} <- Utils.request_options(state.transport, socket),
-             {:ok, protocol_version} <- Utils.select_protocol_version(supported_options),
-             :ok <- startup_connection(state.transport, socket, supported_options, 4, options),
-             :ok <- register_to_events(state.transport, socket),
+        with {:ok, supported_options} <-
+               Utils.request_options(state.transport, socket, protocol_version),
+             :ok <-
+               startup_connection(
+                 state.transport,
+                 socket,
+                 supported_options,
+                 protocol_version,
+                 options
+               ),
+             :ok <- register_to_events(state.transport, socket, protocol_version),
              :ok <- inet_mod(state.transport).setopts(socket, active: true),
              {:ok, state} <- report_active(state) do
           {:ok, state}
@@ -109,11 +119,11 @@ defmodule Xandra.Cluster.ControlConnection do
     Utils.startup_connection(transport, socket, requested_options, protocol_version, nil, options)
   end
 
-  defp register_to_events(transport, socket) do
+  defp register_to_events(transport, socket, protocol_version) do
     payload =
       Frame.new(:register)
       |> Protocol.encode_request(["STATUS_CHANGE"])
-      |> Frame.encode()
+      |> Frame.encode(protocol_version)
 
     with :ok <- transport.send(socket, payload),
          {:ok, %Frame{} = frame} <- Utils.recv_frame(transport, socket) do

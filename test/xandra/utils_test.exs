@@ -4,7 +4,7 @@ defmodule Xandra.Connection.UtilsTest do
   alias Xandra.Connection.Utils
 
   test "select_protocol_version valid inputs" do
-    assert {:ok, 3} =
+    assert {:ok, 4} =
              Utils.select_protocol_version(%{"PROTOCOL_VERSIONS" => ["3/v3", "4/v4", "5/v5-beta"]})
 
     assert {:ok, 3} = Utils.select_protocol_version(%{})

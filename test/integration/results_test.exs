@@ -39,8 +39,8 @@ defmodule ResultsTest do
   describe "SCHEMA_CHANGE result response" do
     # needs `enable_user_defined_functions: true` in cassandra.yml (default: false)
     @describetag :udf
+    @describetag protocol_version: 4
 
-    # v4 only
     test "with user defined function", %{conn: conn, keyspace: keyspace} do
       assert {:ok, result} = Xandra.execute(conn, "USE #{keyspace}")
       assert result == %SetKeyspace{keyspace: String.downcase(keyspace)}
@@ -65,7 +65,6 @@ defmodule ResultsTest do
              }
     end
 
-    # v4 only
     # udf with arity 2 to test string list decoding
     test "with user defined arity 2 function", %{conn: conn, keyspace: keyspace} do
       assert {:ok, result} = Xandra.execute(conn, "USE #{keyspace}")
@@ -101,7 +100,6 @@ defmodule ResultsTest do
              }
     end
 
-    # v4 only
     test "with user defined aggregate", %{conn: conn, keyspace: keyspace} do
       assert {:ok, result} = Xandra.execute(conn, "USE #{keyspace}")
       assert result == %SetKeyspace{keyspace: String.downcase(keyspace)}

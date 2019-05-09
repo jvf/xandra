@@ -61,6 +61,7 @@ defmodule PreparedTest do
     assert Enum.to_list(page) == [%{"[applied]" => false, "code" => 3, "name" => "Nelson"}]
   end
 
+  @tag protocol_version: 4
   test "unset values in prepared statements", %{conn: conn} do
     statement = "CREATE TABLE cars (id int PRIMARY KEY, name text)"
     Xandra.execute!(conn, statement)
@@ -92,6 +93,19 @@ defmodule PreparedTest do
            ]
   end
 
+  @tag protocol_version: 3
+  test "unset value in v3 crashes", %{conn: conn} do
+    statement = "INSERT INTO users (code, name) VALUES (?, ?)"
+    assert {:ok, prepared} = Xandra.prepare(conn, statement)
+
+    assert_raise FunctionClauseError,
+                 "no function clause matching in Xandra.Protocol.encode_value/3",
+                 fn ->
+                   Xandra.execute!(conn, prepared, [3, :unset])
+                 end
+  end
+
+  @tag protocol_version: 4
   test "unset values in prepared statements 2", %{conn: conn} do
     Xandra.execute!(conn, "DROP TABLE IF EXISTS towns")
     statement = "CREATE TABLE towns (id int PRIMARY KEY, name text, location text)"
@@ -105,6 +119,7 @@ defmodule PreparedTest do
     end
   end
 
+  @tag protocol_version: 4
   test "unset values in simple statements", %{conn: conn} do
     Xandra.execute!(conn, "DROP TABLE IF EXISTS towns")
     statement = "CREATE TABLE towns (id int PRIMARY KEY, name text, location text)"

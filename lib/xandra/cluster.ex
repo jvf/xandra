@@ -155,8 +155,7 @@ defmodule Xandra.Cluster do
           Xandra.statement() | Xandra.Prepared.t(),
           Xandra.values(),
           keyword
-        ) ::
-          Enumerable.t()
+        ) :: Enumerable.t()
   def stream_pages!(conn, query, params, options \\ []) do
     Xandra.stream_pages!(conn, query, params, options)
   end
@@ -206,8 +205,7 @@ defmodule Xandra.Cluster do
   """
   @spec execute(cluster, Xandra.statement() | Xandra.Prepared.t(), Xandra.values()) ::
           Xandra.result() | no_return
-  @spec execute(cluster, Xandra.Batch.t(), keyword) ::
-          Xandra.Void.t() | no_return
+  @spec execute(cluster, Xandra.Batch.t(), keyword) :: Xandra.Void.t() | no_return
   def execute!(cluster, query, params_or_options \\ []) do
     case execute(cluster, query, params_or_options) do
       {:ok, result} -> result

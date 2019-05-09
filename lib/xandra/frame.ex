@@ -10,7 +10,7 @@ defmodule Xandra.Frame do
   @type t(kind) :: %__MODULE__{kind: kind}
   @type t :: t(kind)
 
-  @request_version 0x04
+  @request_version %{3 => 0x03, 4 => 0x04}
 
   @request_opcodes %{
     :startup => 0x01,
@@ -22,8 +22,6 @@ defmodule Xandra.Frame do
     :batch => 0x0D,
     :auth_response => 0x0F
   }
-
-  @response_version 0x84
 
   @response_opcodes %{
     0x00 => :error,
@@ -49,12 +47,13 @@ defmodule Xandra.Frame do
   end
 
   @spec encode(t(kind), nil | module) :: iodata
-  def encode(%__MODULE__{} = frame, compressor \\ nil) when is_atom(compressor) do
+  def encode(%__MODULE__{} = frame, protocol_version, compressor \\ nil)
+      when is_atom(compressor) do
     %{tracing: tracing?, kind: kind, stream_id: stream_id, body: body} = frame
     body = maybe_compress_body(compressor, body)
 
     [
-      @request_version,
+      @request_version[protocol_version],
       encode_flags(compressor, tracing?),
       <<stream_id::16>>,
       Map.fetch!(@request_opcodes, kind),
@@ -66,7 +65,8 @@ defmodule Xandra.Frame do
   @spec decode(binary, binary, nil | module) :: t(kind)
   def decode(header, body \\ <<>>, compressor \\ nil)
       when is_binary(body) and is_atom(compressor) do
-    <<@response_version, flags, _stream_id::16, opcode, _::32>> = header
+    # allow all protocol versions to decode "Invalid or unsupported protocol version" response
+    <<_response_version, flags, _stream_id::16, opcode, _::32>> = header
     kind = Map.fetch!(@response_opcodes, opcode)
     warning? = flag_set?(flags, _waning = 0x08)
     body = maybe_decompress_body(flag_set?(flags, _compression = 0x01), compressor, body)

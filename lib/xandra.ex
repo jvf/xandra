@@ -191,7 +191,8 @@ defmodule Xandra do
 
   @default_start_options [
     idle_interval: 30_000,
-    default_consistency: :one
+    default_consistency: :one,
+    protocol_version: 3
   ]
 
   @doc """
@@ -243,6 +244,9 @@ defmodule Xandra do
       all queries. For a list of values, look at the `:consistency` option
       in `execute/4`. Can be overridden through the `:consistency` option in
       `execute/4`. Defaults to `:one`.
+
+    * `:protocol_version` - (3|4) the version of the Cassandra native protocol to use.
+      Default is 3, currently available are version 3 and 4.
 
   The rest of the options are forwarded to `DBConnection.start_link/2`. For
   example, to start a pool of five connections, you can use the `:pool_size`
