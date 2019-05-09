@@ -18,7 +18,14 @@ jobs:
       before_script:
         - docker-compose up -d
         - ./test/docker/health-check-services.sh
-      env: CASSANDRA_VERSION=3
+      env:
+        - CASSANDRA_VERSION=3
+        - CASSANDRA_NATIVE_PROTCOL=3
+
+    - <<: *test
+      env:
+        - CASSANDRA_VERSION=3
+        - CASSANDRA_NATIVE_PROTCOL=4
 
     - <<: *test
       elixir: '1.6'
