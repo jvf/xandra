@@ -41,23 +41,6 @@ defmodule Xandra.Connection.Utils do
     end
   end
 
-  @spec select_protocol_version([String.t()]) ::
-          {:ok, integer()} | {:error, {:unsupported_protocol_version, String.t()}}
-  def select_protocol_version(supported_options) do
-    supported_protocols = Map.get(supported_options, "PROTOCOL_VERSIONS", ["3/v3"])
-
-    supported_versions =
-      supported_protocols
-      |> Enum.map(&String.split(&1, "/"))
-      |> Enum.map(&Kernel.hd/1)
-
-    cond do
-      "4" in supported_versions -> {:ok, 4}
-      "3" in supported_versions -> {:ok, 3}
-      true -> {:error, {:unsupported_protocol_version, supported_protocols}}
-    end
-  end
-
   @spec startup_connection(:gen_tcp | :ssl, term, map, integer, nil | module, list) ::
           :ok | {:error, ConnectionError.t()}
   def startup_connection(

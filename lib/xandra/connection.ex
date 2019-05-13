@@ -210,21 +210,6 @@ defmodule Xandra.Connection do
     end
   end
 
-  def select_protocol_version(supported_options) do
-    supported_protocols = Map.get(supported_options, "PROTOCOL_VERSIONS", ["3/v3"])
-
-    supported_versions =
-      supported_protocols
-      |> Enum.map(&String.split(&1, "/"))
-      |> Enum.map(&Kernel.hd/1)
-
-    cond do
-      # "4" in supported_versions -> {:ok, 4}
-      "3" in supported_versions -> {:ok, 3}
-      true -> {:error, {:unsupported_protocol_version, supported_versions}}
-    end
-  end
-
   defp prepared_cache_lookup(state, prepared, true) do
     Prepared.Cache.delete(state.prepared_cache, prepared)
     :error
