@@ -567,7 +567,10 @@ defmodule Xandra.Protocol do
     0x1003 => :truncate_failure,
     0x1100 => :write_timeout,
     0x1200 => :read_timeout,
+
+    # only protocol version 4
     0x1300 => :read_failure,
+    # only protocol version 4
     0x1400 => :function_failure,
     0x2000 => :invalid_syntax,
     0x2100 => :unauthorized,
@@ -583,6 +586,7 @@ defmodule Xandra.Protocol do
     end
   end
 
+  # only protocol version 4
   defp decode_error_message(:function_failure, buffer) do
     decode_string(message <- buffer)
     decode_string(_keyspace <- buffer)
@@ -638,6 +642,7 @@ defmodule Xandra.Protocol do
     decode_result_response(body, query, Keyword.put(options, :atom_keys?, atom_keys?))
   end
 
+  # only protocol version 4
   defp decode_warnings(body, _query, false) do
     body
   end
@@ -765,7 +770,7 @@ defmodule Xandra.Protocol do
     %{keyspace: keyspace, subject: subject}
   end
 
-  # v4 only
+  # only protocol version 4
   defp decode_change_options(<<buffer::bits>>, target) when target in ["FUNCTION", "AGGREGATE"] do
     decode_string(keyspace <- buffer)
     decode_string(subject <- buffer)
@@ -774,7 +779,7 @@ defmodule Xandra.Protocol do
     %{keyspace: keyspace, subject: subject, arguments: values}
   end
 
-  # v4 only
+  # only protocol version 4
   defp decode_metadata_prepared(
          <<flags::4-bytes, column_count::32-signed, pk_count::32-signed, buffer::bits>>,
          page,
@@ -801,8 +806,7 @@ defmodule Xandra.Protocol do
     end
   end
 
-  # v3 and v4
-  # this is the metadate format from the "Rows" result response in the protocol specs
+  # metadate format from the "Rows" result response
   defp decode_metadata(
          <<flags::4-bytes, column_count::32-signed, buffer::bits>>,
          page,
@@ -831,6 +835,7 @@ defmodule Xandra.Protocol do
   end
 
   # pk = partition key
+  # only protocol version 4
   def decode_pk_index(buffer, 0, acc) do
     {Enum.reverse(acc), buffer}
   end
@@ -1120,22 +1125,22 @@ defmodule Xandra.Protocol do
     {:inet, buffer}
   end
 
-  # v4 only
+  # only protocol version 4
   defp decode_type(<<0x0011::16, buffer::bits>>) do
     {:date, buffer}
   end
 
-  # v4 only
+  # only protocol version 4
   defp decode_type(<<0x0012::16, buffer::bits>>) do
     {:time, buffer}
   end
 
-  # v4 only
+  # only protocol version 4
   defp decode_type(<<0x0013::16, buffer::bits>>) do
     {:smallint, buffer}
   end
 
-  # v4 only
+  # only protocol version 4
   defp decode_type(<<0x0014::16, buffer::bits>>) do
     {:tinyint, buffer}
   end
@@ -1167,7 +1172,7 @@ defmodule Xandra.Protocol do
     decode_type_tuple(buffer, count, [])
   end
 
-  # v3 only (I think)
+  # only protocol version 3
   custom_types = %{
     "org.apache.cassandra.db.marshal.SimpleDateType" => :date,
     "org.apache.cassandra.db.marshal.ShortType" => :smallint,

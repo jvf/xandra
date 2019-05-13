@@ -119,7 +119,6 @@ defmodule Xandra.Connection do
     {:ok, state}
   end
 
-  # prepare query at Cassandra node
   @impl true
   def handle_prepare(%Prepared{} = prepared, options, %__MODULE__{} = state) do
     %__MODULE__{
@@ -161,14 +160,12 @@ defmodule Xandra.Connection do
     end
   end
 
-  # local preparation: inject the protocol version
   def handle_prepare(%Simple{} = simple, _options, %__MODULE__{} = state) do
     %__MODULE__{protocol_version: protocol_version} = state
     simple = %{simple | default_consistency: state.default_consistency}
     {:ok, Map.put(simple, :protocol_version, protocol_version), state}
   end
 
-  # local preparation: inject the protocol version
   def handle_prepare(%Batch{} = batch, _options, %__MODULE__{} = state) do
     %__MODULE__{protocol_version: protocol_version} = state
     batch = %{batch | default_consistency: state.default_consistency}
