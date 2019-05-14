@@ -50,7 +50,7 @@ defmodule Xandra.Cluster.ControlConnection do
 
   def connect(_action, %__MODULE__{address: address, port: port, options: options} = state) do
     protocol_version = Keyword.fetch!(options, :protocol_version)
-    state = Map.put(state, :protocol_version, protocol_version)
+    state = %{state | protocol_version: protocol_version}
 
     case state.transport.connect(address, port, state.transport_options, @default_timeout) do
       {:ok, socket} ->

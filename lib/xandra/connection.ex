@@ -128,7 +128,7 @@ defmodule Xandra.Connection do
     } = state
 
     prepared = %{prepared | default_consistency: state.default_consistency}
-    prepared = Map.put(prepared, :protocol_version, protocol_version)
+    prepared = %{prepared | protocol_version: protocol_version}
 
     force? = Keyword.get(options, :force, false)
     compressor = assert_valid_compressor(compressor, options[:compressor])
@@ -163,13 +163,13 @@ defmodule Xandra.Connection do
   def handle_prepare(%Simple{} = simple, _options, %__MODULE__{} = state) do
     %__MODULE__{protocol_version: protocol_version} = state
     simple = %{simple | default_consistency: state.default_consistency}
-    {:ok, Map.put(simple, :protocol_version, protocol_version), state}
+    {:ok, %{simple | protocol_version: protocol_version}, state}
   end
 
   def handle_prepare(%Batch{} = batch, _options, %__MODULE__{} = state) do
     %__MODULE__{protocol_version: protocol_version} = state
     batch = %{batch | default_consistency: state.default_consistency}
-    {:ok, Map.put(batch, :protocol_version, protocol_version), state}
+    {:ok, %{batch | protocol_version: protocol_version}, state}
   end
 
   @impl true
