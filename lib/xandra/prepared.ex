@@ -46,10 +46,6 @@ defmodule Xandra.Prepared do
       prepared
     end
 
-    def encode(%@for{protocol_version: nil}, _values, _options) do
-      throw(Xandra.ConnectionError.new("encode", "missing protocol version"))
-    end
-
     def encode(prepared, values, options) when is_map(values) do
       encode(prepared, @for.rewrite_named_params_to_positional(prepared, values), options)
     end
