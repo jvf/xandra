@@ -41,7 +41,7 @@ defmodule Xandra.Connection.Utils do
     end
   end
 
-  @spec startup_connection(:gen_tcp | :ssl, term, map, Xandra.protocol_version(), nil | module, list) ::
+  @spec startup_connection(:gen_tcp | :ssl, term, map, Xandra.protocol_version(), nil | module) ::
           :ok | {:error, ConnectionError.t()}
   def startup_connection(
         transport,

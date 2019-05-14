@@ -28,14 +28,13 @@ defmodule Xandra.Connection do
     compressor = Keyword.get(options, :compressor)
     default_consistency = Keyword.fetch!(options, :default_consistency)
     atom_keys? = Keyword.get(options, :atom_keys, false)
+    protocol_version = Keyword.fetch!(options, :protocol_version)
     transport = if(options[:encryption], do: :ssl, else: :gen_tcp)
 
     transport_options =
       options
       |> Keyword.get(:transport_options, [])
       |> Keyword.merge(@forced_transport_options)
-
-    protocol_version = Keyword.fetch!(options, :protocol_version)
 
     case transport.connect(address, port, transport_options, @default_timeout) do
       {:ok, socket} ->
@@ -120,18 +119,12 @@ defmodule Xandra.Connection do
   end
 
   @impl true
-  def handle_prepare(%Prepared{} = prepared, options, %__MODULE__{} = state) do
-    %__MODULE__{
-      socket: socket,
-      protocol_version: protocol_version,
-      compressor: compressor
-    } = state
-
+  def handle_prepare(%Prepared{} = prepared, options, %__MODULE__{socket: socket} = state) do
     prepared = %{prepared | default_consistency: state.default_consistency}
-    prepared = %{prepared | protocol_version: protocol_version}
+    prepared = %{prepared | protocol_version: state.protocol_version}
 
     force? = Keyword.get(options, :force, false)
-    compressor = assert_valid_compressor(compressor, options[:compressor])
+    compressor = assert_valid_compressor(state.compressor, options[:compressor])
     transport = state.transport
 
     case prepared_cache_lookup(state, prepared, force?) do
@@ -142,10 +135,10 @@ defmodule Xandra.Connection do
         payload =
           Frame.new(:prepare)
           |> Protocol.encode_request(prepared)
-          |> Frame.encode(protocol_version, compressor)
+          |> Frame.encode(state.protocol_version, compressor)
 
         with :ok <- transport.send(socket, payload),
-             {:ok, %Frame{} = frame} <- Utils.recv_frame(transport, socket, compressor),
+             {:ok, %Frame{} = frame} <- Utils.recv_frame(transport, socket, state.compressor),
              frame = %{frame | atom_keys?: state.atom_keys?},
              %Prepared{} = prepared <- Protocol.decode_response(frame, prepared) do
           Prepared.Cache.insert(state.prepared_cache, prepared)
@@ -161,15 +154,13 @@ defmodule Xandra.Connection do
   end
 
   def handle_prepare(%Simple{} = simple, _options, %__MODULE__{} = state) do
-    %__MODULE__{protocol_version: protocol_version} = state
     simple = %{simple | default_consistency: state.default_consistency}
-    {:ok, %{simple | protocol_version: protocol_version}, state}
+    {:ok, %{simple | protocol_version: state.protocol_version}, state}
   end
 
   def handle_prepare(%Batch{} = batch, _options, %__MODULE__{} = state) do
-    %__MODULE__{protocol_version: protocol_version} = state
     batch = %{batch | default_consistency: state.default_consistency}
-    {:ok, %{batch | protocol_version: protocol_version}, state}
+    {:ok, %{batch | protocol_version: state.protocol_version}, state}
   end
 
   @impl true

@@ -274,18 +274,12 @@ defmodule Xandra.Protocol do
             "got: #{inspect(other)}"
   end
 
-  defp encode_query_in_batch(%Simple{} = simple) do
-    %Simple{
-      statement: statement,
-      values: values,
-      protocol_version: protocol_version
-    } = simple
-
+  defp encode_query_in_batch(%Simple{statement: statement, values: values} = simple) do
     [
       _kind = 0,
       <<byte_size(statement)::32>>,
       statement,
-      encode_query_values([], values, protocol_version)
+      encode_query_values([], values, simple.protocol_version)
     ]
   end
 
@@ -348,9 +342,7 @@ defmodule Xandra.Protocol do
     encode_query_value(TypeParser.parse(type), value, protocol_version)
   end
 
-  defp encode_query_value(type, value, protocol_version)
-
-  defp encode_query_value(_type, nil, _) do
+  defp encode_query_value(_type, nil, _protocol_version) do
     <<-1::32>>
   end
 
@@ -567,7 +559,6 @@ defmodule Xandra.Protocol do
     0x1003 => :truncate_failure,
     0x1100 => :write_timeout,
     0x1200 => :read_timeout,
-
     # only protocol version 4
     0x1300 => :read_failure,
     # only protocol version 4
@@ -669,7 +660,7 @@ defmodule Xandra.Protocol do
     %Xandra.Void{}
   end
 
-  # Page ("Rows" in native protocol specs)
+  # Page
   defp decode_result_response(<<0x0002::32-signed, buffer::bits>>, query, options) do
     page = new_page(query)
     {page, buffer} = decode_metadata(buffer, page, Keyword.fetch!(options, :atom_keys?))
@@ -709,7 +700,6 @@ defmodule Xandra.Protocol do
 
   # SchemaChange
   defp decode_result_response(<<0x0005::32-signed, buffer::bits>>, _query, _options) do
-    # effect = "change_type" in native protocol spec
     decode_string(effect <- buffer)
     decode_string(target <- buffer)
     options = decode_change_options(buffer, target)
