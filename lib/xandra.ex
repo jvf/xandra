@@ -175,6 +175,7 @@ defmodule Xandra do
   @type error :: Error.t() | ConnectionError.t()
   @type result :: Xandra.Void.t() | Page.t() | Xandra.SetKeyspace.t() | Xandra.SchemaChange.t()
   @type conn :: DBConnection.conn()
+  @type protocol_version :: 3 | 4 | nil
 
   @type xandra_start_option ::
           {:nodes, [String.t()]}

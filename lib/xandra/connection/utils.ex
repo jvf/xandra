@@ -20,7 +20,7 @@ defmodule Xandra.Connection.Utils do
     end
   end
 
-  @spec request_options(:gen_tcp | :ssl, term, nil | module) ::
+  @spec request_options(:gen_tcp | :ssl, term, Xandra.protocol_version(), nil | module) ::
           {:ok, term} | {:error, ConnectionError.t()}
   def request_options(transport, socket, protocol_version, compressor \\ nil) do
     payload =
@@ -41,7 +41,7 @@ defmodule Xandra.Connection.Utils do
     end
   end
 
-  @spec startup_connection(:gen_tcp | :ssl, term, map, integer, nil | module, list) ::
+  @spec startup_connection(:gen_tcp | :ssl, term, map, Xandra.protocol_version(), nil | module, list) ::
           :ok | {:error, ConnectionError.t()}
   def startup_connection(
         transport,

@@ -20,7 +20,7 @@ defmodule Xandra.Prepared do
             bound_columns: list | nil,
             result_columns: list | nil,
             default_consistency: atom | nil,
-            protocol_version: 3 | 4 | nil
+            protocol_version: Xandra.protocol_version()
           }
 
   @doc false

@@ -46,7 +46,7 @@ defmodule Xandra.Frame do
     length
   end
 
-  @spec encode(t(kind), nil | module) :: iodata
+  @spec encode(t(kind), Xandra.protocol_version(), nil | module) :: iodata
   def encode(%__MODULE__{} = frame, protocol_version, compressor \\ nil)
       when is_atom(compressor) do
     %{tracing: tracing?, kind: kind, stream_id: stream_id, body: body} = frame
