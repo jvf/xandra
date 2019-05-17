@@ -64,6 +64,7 @@ defmodule ErrorsTest do
            end) =~ "Read 0 live rows and 100001 tombstone cells"
   end
 
+  @tag protocol_version: 4
   @tag :udf
   test "function_failure error", %{conn: conn} do
     statement = """
