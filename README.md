@@ -1,5 +1,3 @@
-# BEWARE: This branch is a personal dev-branch and subject to heavy history rewriting!
-
 # Xandra
 
 [![Build Status](https://travis-ci.org/lexhide/xandra.svg?branch=master)](https://travis-ci.org/lexhide/xandra)

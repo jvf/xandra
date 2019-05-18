@@ -153,12 +153,12 @@ defmodule Xandra.Connection do
     end
   end
 
-  def handle_prepare(%Simple{} = simple, _options, %__MODULE__{} = state) do
+  def handle_prepare(%Simple{} = simple, _options, state) do
     simple = %{simple | default_consistency: state.default_consistency}
     {:ok, %{simple | protocol_version: state.protocol_version}, state}
   end
 
-  def handle_prepare(%Batch{} = batch, _options, %__MODULE__{} = state) do
+  def handle_prepare(%Batch{} = batch, _options, state) do
     batch = %{batch | default_consistency: state.default_consistency}
     {:ok, %{batch | protocol_version: state.protocol_version}, state}
   end
