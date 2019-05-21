@@ -193,7 +193,7 @@ defmodule Xandra do
   @default_start_options [
     idle_interval: 30_000,
     default_consistency: :one,
-    protocol_version: 4
+    protocol_version: 3
   ]
 
   @doc """
@@ -247,7 +247,7 @@ defmodule Xandra do
       `execute/4`. Defaults to `:one`.
 
     * `:protocol_version` - (3|4) the version of the Cassandra native protocol to use.
-      Default is 4, currently available are version 3 and 4.
+      Default is 3, currently available are version 3 and 4.
 
   The rest of the options are forwarded to `DBConnection.start_link/2`. For
   example, to start a pool of five connections, you can use the `:pool_size`

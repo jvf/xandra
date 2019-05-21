@@ -73,7 +73,7 @@ defmodule Xandra.Cluster do
   @default_start_options [
     nodes: ["127.0.0.1"],
     idle_interval: 30_000,
-    protocol_version: 4
+    protocol_version: 3
   ]
 
   defstruct [
