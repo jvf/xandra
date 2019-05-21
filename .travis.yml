@@ -44,6 +44,11 @@ jobs:
       env: SCYLLA_VERSION=2.3.0
 
     - <<: *test-scylla
+      env:
+        - SCYLLA_VERSION=2.3.0
+        - CASSANDRA_NATIVE_PROTOCOL=4
+
+    - <<: *test-scylla
       elixir: '1.6'
       otp_release: '19.3'
       env: SCYLLA_VERSION=2.3.0
