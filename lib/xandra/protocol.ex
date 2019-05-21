@@ -15,8 +15,6 @@ defmodule Xandra.Protocol do
 
   alias Xandra.Cluster.StatusChange
 
-  require Logger
-
   @unix_epoch_days 0x80000000
 
   # We need these two macros to make
@@ -600,8 +598,8 @@ defmodule Xandra.Protocol do
           Xandra.result() | Prepared.t()
   def decode_response(frame, query \\ nil, options \\ [])
 
-  def decode_response(%Frame{kind: :error, body: body, warning: warning?}, query, _options) do
-    body = decode_warnings(body, query, warning?)
+  def decode_response(%Frame{kind: :error, body: body, warning: warning?}, _query, _options) do
+    body = decode_warnings(body, warning?)
     {reason, buffer} = decode_error_reason(body)
     Error.new(reason, decode_error_message(reason, buffer))
   end
@@ -629,23 +627,19 @@ defmodule Xandra.Protocol do
         options
       )
       when kind in [Simple, Prepared, Batch] do
-    body = decode_warnings(body, query, warning?)
+    body = decode_warnings(body, warning?)
     decode_result_response(body, query, Keyword.put(options, :atom_keys?, atom_keys?))
   end
 
   # only protocol version 4
-  defp decode_warnings(body, _query, false) do
+  # we need to consume the warning to correctly parse the rest of the body
+  # warnings are ignored for now
+  defp decode_warnings(body, false) do
     body
   end
 
-  defp decode_warnings(body, query, true) do
-    {warnings, body} = decode_string_list(body)
-
-    case warnings do
-      [warning] -> Logger.warn("Warning on #{inspect(query)}: #{inspect(warning)}")
-      warnings -> Logger.warn("Warnings on #{inspect(query)}: #{inspect(warnings)}")
-    end
-
+  defp decode_warnings(body, true) do
+    {_warnings, body} = decode_string_list(body)
     body
   end
 

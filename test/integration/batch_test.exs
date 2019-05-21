@@ -1,8 +1,6 @@
 defmodule BatchTest do
   use XandraTest.IntegrationCase
 
-  import ExUnit.CaptureLog
-
   alias Xandra.{Batch, Error, Void}
 
   setup_all %{keyspace: keyspace, start_options: start_options} do
@@ -59,8 +57,8 @@ defmodule BatchTest do
 
   @tag protocol_version: 4
   test "batch of type \"unlogged\" producing warning in v4", %{conn: conn} do
-    # batches spanning more than `unlogged_batch_across_partitions_warn_threshold` (default: 10)
-    #   partitions generate a warning
+    # batches spanning more partitions than `unlogged_batch_across_partitions_warn_threshold`
+    #   (default: 10) generate a warning
     batch =
       Batch.new(:unlogged)
       |> Batch.add("INSERT INTO users (id, name) VALUES (1, 'Rick')")
@@ -75,8 +73,7 @@ defmodule BatchTest do
       |> Batch.add("INSERT INTO users (id, name) VALUES (10, 'Ethan')")
       |> Batch.add("INSERT INTO users (id, name) VALUES (11, 'Nancy')")
 
-    assert capture_log(fn -> assert {:ok, %Void{}} = Xandra.execute(conn, batch) end) =~
-             "Unlogged batch covering 11 partitions detected"
+    {:ok, %Void{}} = Xandra.execute(conn, batch)
 
     result =
       Xandra.execute!(conn, "SELECT name FROM users")

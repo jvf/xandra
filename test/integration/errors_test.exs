@@ -1,8 +1,6 @@
 defmodule ErrorsTest do
   use XandraTest.IntegrationCase
 
-  import ExUnit.CaptureLog
-
   alias Xandra.{Error, Frame, Protocol, Simple}
 
   test "each possible error", %{conn: conn} do
@@ -41,9 +39,7 @@ defmodule ErrorsTest do
     frame = %Frame{kind: :error, body: body, warning: true}
     query = %Simple{statement: "SELECT * FROM tombstones", values: nil, protocol_version: 4}
 
-    assert capture_log(fn ->
-             assert %Error{reason: :read_failure} = Protocol.decode_response(frame, query, [])
-           end) =~ "Read 0 live rows and 100001 tombstone cells"
+    assert %Error{reason: :read_failure} = Protocol.decode_response(frame, query, [])
   end
 
   @tag :slow
@@ -58,10 +54,8 @@ defmodule ErrorsTest do
       Xandra.execute!(conn, delete, [i])
     end
 
-    assert capture_log(fn ->
-             {:error, reason} = Xandra.execute(conn, "SELECT * FROM tombstones")
-             assert %Error{reason: readout_failure} = reason
-           end) =~ "Read 0 live rows and 100001 tombstone cells"
+    {:error, reason} = Xandra.execute(conn, "SELECT * FROM tombstones")
+    assert %Error{reason: :read_failure} = reason
   end
 
   @tag protocol_version: 4
