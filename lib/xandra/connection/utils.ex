@@ -3,19 +3,20 @@ defmodule Xandra.Connection.Utils do
 
   alias Xandra.{ConnectionError, Error, Frame, Protocol}
 
-  @spec recv_frame(:gen_tcp | :ssl, term, nil | module) ::
+  @spec recv_frame(:gen_tcp | :ssl, term, Xandra.protocol_version(), nil | module) ::
           {:ok, Frame.t()} | {:error, :closed | :inet.posix()}
-  def recv_frame(transport, socket, compressor \\ nil) when is_atom(compressor) do
+  def recv_frame(transport, socket, protocol_version, compressor \\ nil)
+      when is_atom(compressor) do
     length = Frame.header_length()
 
     with {:ok, header} <- transport.recv(socket, length) do
       case Frame.body_length(header) do
         0 ->
-          {:ok, Frame.decode(header)}
+          Frame.decode(header, protocol_version)
 
         body_length ->
           with {:ok, body} <- transport.recv(socket, body_length),
-               do: {:ok, Frame.decode(header, body, compressor)}
+               do: Frame.decode(header, body, protocol_version, compressor)
       end
     end
   end
@@ -29,7 +30,7 @@ defmodule Xandra.Connection.Utils do
       |> Frame.encode(protocol_version)
 
     with :ok <- transport.send(socket, payload),
-         {:ok, %Frame{} = frame} <- recv_frame(transport, socket, compressor),
+         {:ok, %Frame{} = frame} <- recv_frame(transport, socket, protocol_version, compressor),
          %{"CQL_VERSION" => _} = response <- Protocol.decode_response(frame) do
       {:ok, response}
     else
@@ -63,7 +64,7 @@ defmodule Xandra.Connection.Utils do
     # receive the response to this frame because if we said we want to use
     # compression, this response is already compressed.
     with :ok <- transport.send(socket, payload),
-         {:ok, frame} <- recv_frame(transport, socket, compressor) do
+         {:ok, frame} <- recv_frame(transport, socket, protocol_version, compressor) do
       case frame do
         %Frame{body: <<>>} ->
           :ok
@@ -110,7 +111,7 @@ defmodule Xandra.Connection.Utils do
       |> Frame.encode(protocol_version)
 
     with :ok <- transport.send(socket, payload),
-         {:ok, frame} <- recv_frame(transport, socket, compressor) do
+         {:ok, frame} <- recv_frame(transport, socket, protocol_version, compressor) do
       case frame do
         %Frame{kind: :auth_success} -> :ok
         %Frame{kind: :error} -> {:error, Protocol.decode_response(frame)}

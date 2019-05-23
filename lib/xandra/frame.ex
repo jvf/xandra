@@ -23,6 +23,9 @@ defmodule Xandra.Frame do
     :auth_response => 0x0F
   }
 
+  @response_version %{3 => 0x83, 4 => 0x84}
+  @response_version_number %{0x83 => 3, 0x84 => 4}
+
   @response_opcodes %{
     0x00 => :error,
     0x02 => :ready,
@@ -63,14 +66,24 @@ defmodule Xandra.Frame do
   end
 
   @spec decode(binary, binary, nil | module) :: t(kind)
-  def decode(header, body \\ <<>>, compressor \\ nil)
+  def decode(header, body \\ <<>>, protocol_version, compressor \\ nil)
       when is_binary(body) and is_atom(compressor) do
-    # allow all protocol versions to decode "Invalid or unsupported protocol version" response
-    <<_response_version, flags, _stream_id::16, opcode, _::32>> = header
-    kind = Map.fetch!(@response_opcodes, opcode)
-    warning? = flag_set?(flags, _waning = 0x08)
-    body = maybe_decompress_body(flag_set?(flags, _compression = 0x01), compressor, body)
-    %__MODULE__{kind: kind, body: body, warning: warning?}
+    <<response_version, flags, _stream_id::16, opcode, _::32>> = header
+
+    if assert_correct_response_version(response_version, protocol_version) do
+      kind = Map.fetch!(@response_opcodes, opcode)
+      warning? = flag_set?(flags, _waning = 0x08)
+      body = maybe_decompress_body(flag_set?(flags, _compression = 0x01), compressor, body)
+      {:ok, %__MODULE__{kind: kind, body: body, warning: warning?}}
+    else
+      {:error,
+       "you requested protocol v#{protocol_version} " <>
+         "but server answered with protocol v#{@response_version_number[response_version]}"}
+    end
+  end
+
+  def assert_correct_response_version(response_version, protocol_version) do
+    @response_version[protocol_version] == response_version
   end
 
   defp encode_flags(_compressor = nil, _tracing? = false), do: 0x00

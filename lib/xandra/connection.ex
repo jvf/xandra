@@ -138,7 +138,8 @@ defmodule Xandra.Connection do
           |> Frame.encode(state.protocol_version, compressor)
 
         with :ok <- transport.send(socket, payload),
-             {:ok, %Frame{} = frame} <- Utils.recv_frame(transport, socket, state.compressor),
+             {:ok, %Frame{} = frame} <-
+               Utils.recv_frame(transport, socket, state.protocol_version, state.compressor),
              frame = %{frame | atom_keys?: state.atom_keys?},
              %Prepared{} = prepared <- Protocol.decode_response(frame, prepared) do
           Prepared.Cache.insert(state.prepared_cache, prepared)
@@ -169,7 +170,8 @@ defmodule Xandra.Connection do
     assert_valid_compressor(compressor, options[:compressor])
 
     with :ok <- state.transport.send(socket, payload),
-         {:ok, %Frame{} = frame} <- Utils.recv_frame(state.transport, socket, compressor) do
+         {:ok, %Frame{} = frame} <-
+           Utils.recv_frame(state.transport, socket, state.protocol_version, compressor) do
       {:ok, query, %{frame | atom_keys?: atom_keys?}, state}
     else
       {:error, reason} ->
