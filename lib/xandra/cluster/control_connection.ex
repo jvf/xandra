@@ -122,12 +122,12 @@ defmodule Xandra.Cluster.ControlConnection do
   defp register_to_events(transport, socket, protocol_version) do
     payload =
       Frame.new(:register)
-      |> Protocol.encode_request(["STATUS_CHANGE"])
+      |> Protocol.encode_request(["STATUS_CHANGE"], protocol_version)
       |> Frame.encode(protocol_version)
 
     with :ok <- transport.send(socket, payload),
          {:ok, %Frame{} = frame} <- Utils.recv_frame(transport, socket, protocol_version) do
-      :ok = Protocol.decode_response(frame)
+      :ok = Protocol.decode_response(frame, protocol_version)
     else
       {:error, reason} ->
         {:error, reason}
@@ -137,7 +137,7 @@ defmodule Xandra.Cluster.ControlConnection do
   defp report_event(%{cluster: cluster, buffer: buffer} = state) do
     case decode_frame(buffer, state.protocol_version) do
       {frame, rest} ->
-        status_change = Protocol.decode_response(frame)
+        status_change = Protocol.decode_response(frame, state.protocol_version)
         Logger.debug("Received STATUS_CHANGE event: #{inspect(status_change)}")
         Xandra.Cluster.update(cluster, status_change)
         report_event(%{state | buffer: rest})

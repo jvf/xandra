@@ -52,12 +52,12 @@ defmodule Xandra.Prepared do
 
     def encode(prepared, values, options) when is_list(values) do
       Frame.new(:execute)
-      |> Protocol.encode_request(%{prepared | values: values}, options)
+      |> Protocol.encode_request(%{prepared | values: values}, options, prepared.protocol_version)
       |> Frame.encode(prepared.protocol_version, options[:compressor])
     end
 
     def decode(prepared, %Frame{} = frame, options) do
-      Protocol.decode_response(frame, prepared, options)
+      Protocol.decode_response(frame, prepared, options, prepared.protocol_version)
     end
 
     def describe(prepared, _options) do

@@ -39,7 +39,7 @@ defmodule ErrorsTest do
     frame = %Frame{kind: :error, body: body, warning: true}
     query = %Simple{statement: "SELECT * FROM tombstones", values: nil, protocol_version: :v4}
 
-    assert %Error{reason: :read_failure} = Protocol.decode_response(frame, query, [])
+    assert %Error{reason: :read_failure} = Protocol.decode_response(frame, query, [], :v4)
   end
 
   @tag :slow

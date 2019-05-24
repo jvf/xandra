@@ -99,7 +99,7 @@ defmodule PreparedTest do
     assert {:ok, prepared} = Xandra.prepare(conn, statement)
 
     assert_raise FunctionClauseError,
-                 "no function clause matching in Xandra.Protocol.encode_value/3",
+                 "no function clause matching in Xandra.Protocol.V3.encode_value/2",
                  fn ->
                    Xandra.execute!(conn, prepared, [3, :unset])
                  end

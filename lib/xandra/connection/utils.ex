@@ -26,12 +26,12 @@ defmodule Xandra.Connection.Utils do
   def request_options(transport, socket, protocol_version, compressor \\ nil) do
     payload =
       Frame.new(:options)
-      |> Protocol.encode_request(nil)
+      |> Protocol.encode_request(nil, protocol_version)
       |> Frame.encode(protocol_version)
 
     with :ok <- transport.send(socket, payload),
          {:ok, %Frame{} = frame} <- recv_frame(transport, socket, protocol_version, compressor),
-         %{"CQL_VERSION" => _} = response <- Protocol.decode_response(frame) do
+         %{"CQL_VERSION" => _} = response <- Protocol.decode_response(frame, protocol_version) do
       {:ok, response}
     else
       {:error, reason} ->
@@ -57,7 +57,7 @@ defmodule Xandra.Connection.Utils do
     # we tell the server which compression algorithm we want to use.
     payload =
       Frame.new(:startup)
-      |> Protocol.encode_request(requested_options)
+      |> Protocol.encode_request(requested_options, protocol_version)
       |> Frame.encode(protocol_version)
 
     # However, we need to pass the compressor module around when we
@@ -85,7 +85,7 @@ defmodule Xandra.Connection.Utils do
           #   message: "Invalid message version. Got 4/v4 but previous messages on this connection had version 3/v3",
           #   reason: :protocol_violation
           # }
-          error = %Error{} = Protocol.decode_response(frame)
+          error = %Error{} = Protocol.decode_response(frame, protocol_version)
           raise error
 
         _ ->
@@ -107,14 +107,14 @@ defmodule Xandra.Connection.Utils do
        ) do
     payload =
       Frame.new(:auth_response)
-      |> Protocol.encode_request(requested_options, options)
+      |> Protocol.encode_request(requested_options, options, protocol_version)
       |> Frame.encode(protocol_version)
 
     with :ok <- transport.send(socket, payload),
          {:ok, frame} <- recv_frame(transport, socket, protocol_version, compressor) do
       case frame do
         %Frame{kind: :auth_success} -> :ok
-        %Frame{kind: :error} -> {:error, Protocol.decode_response(frame)}
+        %Frame{kind: :error} -> {:error, Protocol.decode_response(frame, protocol_version)}
         _ -> raise "protocol violation, got unexpected frame: #{inspect(frame)}"
       end
     else

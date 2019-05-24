@@ -134,14 +134,15 @@ defmodule Xandra.Connection do
       :error ->
         payload =
           Frame.new(:prepare)
-          |> Protocol.encode_request(prepared)
+          |> Protocol.encode_request(prepared, state.protocol_version)
           |> Frame.encode(state.protocol_version, compressor)
 
         with :ok <- transport.send(socket, payload),
              {:ok, %Frame{} = frame} <-
                Utils.recv_frame(transport, socket, state.protocol_version, state.compressor),
              frame = %{frame | atom_keys?: state.atom_keys?},
-             %Prepared{} = prepared <- Protocol.decode_response(frame, prepared) do
+             %Prepared{} = prepared <-
+               Protocol.decode_response(frame, prepared, state.protocol_version) do
           Prepared.Cache.insert(state.prepared_cache, prepared)
           {:ok, prepared, state}
         else
