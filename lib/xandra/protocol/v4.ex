@@ -584,9 +584,7 @@ defmodule Xandra.Protocol.V4 do
     decode_result_response(body, query, Keyword.put(options, :atom_keys?, atom_keys?))
   end
 
-  # only protocol version 4
-  # we need to consume the warning to correctly parse the rest of the body
-  # warnings are ignored for now
+  # We decode to consume the warning from the body but we ignore the result
   defp decode_warnings(body, false) do
     body
   end
