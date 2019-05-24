@@ -175,7 +175,7 @@ defmodule Xandra do
   @type error :: Error.t() | ConnectionError.t()
   @type result :: Xandra.Void.t() | Page.t() | Xandra.SetKeyspace.t() | Xandra.SchemaChange.t()
   @type conn :: DBConnection.conn()
-  @type protocol_version :: 3 | 4 | nil
+  @type protocol_version :: :v3 | :v4 | nil
 
   @type xandra_start_option ::
           {:nodes, [String.t()]}
@@ -193,7 +193,7 @@ defmodule Xandra do
   @default_start_options [
     idle_interval: 30_000,
     default_consistency: :one,
-    protocol_version: 3
+    protocol_version: :v3
   ]
 
   @doc """
@@ -246,8 +246,8 @@ defmodule Xandra do
       in `execute/4`. Can be overridden through the `:consistency` option in
       `execute/4`. Defaults to `:one`.
 
-    * `:protocol_version` - (3|4) the version of the Cassandra native protocol to use.
-      Default is 3, currently available are version 3 and 4.
+    * `:protocol_version` - (v3|v4) the version of the Cassandra native protocol to use.
+      Default is v3, currently available are version v3 and v4.
 
   The rest of the options are forwarded to `DBConnection.start_link/2`. For
   example, to start a pool of five connections, you can use the `:pool_size`

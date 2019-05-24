@@ -345,7 +345,7 @@ defmodule Xandra.Protocol do
   end
 
   # `:unset` value needs native protocol version 4
-  defp encode_query_value(_type, :unset, 4) do
+  defp encode_query_value(_type, :unset, :v4) do
     <<-2::32>>
   end
 
@@ -681,10 +681,10 @@ defmodule Xandra.Protocol do
     # TODO push down dispatching?
     {%{columns: bound_columns}, buffer} =
       case protocol_version do
-        3 ->
+        :v3 ->
           decode_metadata(buffer, %Page{}, atom_keys?)
 
-        4 ->
+        :v4 ->
           decode_metadata_prepared(buffer, %Page{}, atom_keys?)
       end
 

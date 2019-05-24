@@ -20,12 +20,12 @@ jobs:
         - ./test/docker/health-check-services.sh
       env:
         - CASSANDRA_VERSION=3
-        - CASSANDRA_NATIVE_PROTOCOL=3
+        - CASSANDRA_NATIVE_PROTOCOL=v3
 
     - <<: *test
       env:
         - CASSANDRA_VERSION=3
-        - CASSANDRA_NATIVE_PROTOCOL=4
+        - CASSANDRA_NATIVE_PROTOCOL=v4
 
     - <<: *test
       elixir: '1.6'
@@ -46,7 +46,7 @@ jobs:
     - <<: *test-scylla
       env:
         - SCYLLA_VERSION=2.3.0
-        - CASSANDRA_NATIVE_PROTOCOL=4
+        - CASSANDRA_NATIVE_PROTOCOL=v4
 
     - <<: *test-scylla
       elixir: '1.6'

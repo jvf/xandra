@@ -18,7 +18,7 @@ defmodule ErrorsTest do
     assert %Error{reason: :invalid} = reason
   end
 
-  @tag protocol_version: 4
+  @tag protocol_version: :v4
   test "readout_failure error with fixture" do
     # response body "SELECT * FROM tombstones" from "test read_failure error" with a warning and a
     # read_failure error
@@ -37,7 +37,7 @@ defmodule ErrorsTest do
         0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0>>
 
     frame = %Frame{kind: :error, body: body, warning: true}
-    query = %Simple{statement: "SELECT * FROM tombstones", values: nil, protocol_version: 4}
+    query = %Simple{statement: "SELECT * FROM tombstones", values: nil, protocol_version: :v4}
 
     assert %Error{reason: :read_failure} = Protocol.decode_response(frame, query, [])
   end
@@ -58,7 +58,7 @@ defmodule ErrorsTest do
     assert %Error{reason: :read_failure} = reason
   end
 
-  @tag protocol_version: 4
+  @tag protocol_version: :v4
   @tag :udf
   test "function_failure error", %{conn: conn} do
     statement = """

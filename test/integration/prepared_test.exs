@@ -61,7 +61,7 @@ defmodule PreparedTest do
     assert Enum.to_list(page) == [%{"[applied]" => false, "code" => 3, "name" => "Nelson"}]
   end
 
-  @tag protocol_version: 4
+  @tag protocol_version: :v4
   test "unset values in prepared statements", %{conn: conn} do
     statement = "CREATE TABLE cars (id int PRIMARY KEY, name text)"
     Xandra.execute!(conn, statement)
@@ -93,7 +93,7 @@ defmodule PreparedTest do
            ]
   end
 
-  @tag protocol_version: 3
+  @tag protocol_version: :v3
   test "unset value in v3 crashes", %{conn: conn} do
     statement = "INSERT INTO users (code, name) VALUES (?, ?)"
     assert {:ok, prepared} = Xandra.prepare(conn, statement)
@@ -105,7 +105,21 @@ defmodule PreparedTest do
                  end
   end
 
-  @tag protocol_version: 4
+  @tag protocol_version: :v4
+  test "unset values in prepared statements 2", %{conn: conn} do
+    Xandra.execute!(conn, "DROP TABLE IF EXISTS towns")
+    statement = "CREATE TABLE towns (id int PRIMARY KEY, name text, location text)"
+    Xandra.execute!(conn, statement)
+
+    statement = "INSERT INTO towns (id, name, location) VALUES (?, ?, ?)"
+    assert {:ok, prepared} = Xandra.prepare(conn, statement)
+
+    for i <- 1..100 do
+      assert {:ok, %Xandra.Void{}} = Xandra.execute(conn, prepared, [i, "town#{i}", :unset])
+    end
+  end
+
+  @tag protocol_version: :v4
   test "unset values in simple statements", %{conn: conn} do
     Xandra.execute!(conn, "DROP TABLE IF EXISTS towns")
     statement = "CREATE TABLE towns (id int PRIMARY KEY, name text, location text)"
