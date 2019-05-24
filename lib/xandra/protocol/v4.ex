@@ -75,19 +75,12 @@ defmodule Xandra.Protocol.V4 do
   end
 
   def encode_request(%Frame{kind: :query} = frame, %Simple{} = query, options) do
-    %{statement: statement, values: values, protocol_version: protocol_version} = query
+    %{statement: statement, values: values} = query
 
     body = [
       <<byte_size(statement)::32>>,
       statement,
-      encode_params(
-        [],
-        values,
-        options,
-        query.default_consistency,
-        _skip_metadata? = false,
-        protocol_version
-      )
+      encode_params([], values, options, query.default_consistency, _skip_metadata? = false)
     ]
 
     %{frame | body: body}
@@ -99,26 +92,13 @@ defmodule Xandra.Protocol.V4 do
   end
 
   def encode_request(%Frame{kind: :execute} = frame, %Prepared{} = prepared, options) do
-    %Prepared{
-      id: id,
-      bound_columns: columns,
-      values: values,
-      protocol_version: protocol_version
-    } = prepared
-
+    %{id: id, bound_columns: columns, values: values} = prepared
     skip_metadata? = prepared.result_columns != nil
 
     body = [
       <<byte_size(id)::16>>,
       id,
-      encode_params(
-        columns,
-        values,
-        options,
-        prepared.default_consistency,
-        skip_metadata?,
-        protocol_version
-      )
+      encode_params(columns, values, options, prepared.default_consistency, skip_metadata?)
     ]
 
     %{frame | body: body}
@@ -209,14 +189,7 @@ defmodule Xandra.Protocol.V4 do
     end
   end
 
-  defp encode_params(
-         columns,
-         values,
-         options,
-         default_consistency,
-         skip_metadata?,
-         protocol_version
-       ) do
+  defp encode_params(columns, values, options, default_consistency, skip_metadata?) do
     consistency = Keyword.get(options, :consistency, default_consistency)
     page_size = Keyword.get(options, :page_size, 10_000)
     paging_state = Keyword.get(options, :paging_state)
@@ -236,7 +209,7 @@ defmodule Xandra.Protocol.V4 do
       if values == [] or values == %{} do
         []
       else
-        encode_query_values(columns, values, protocol_version)
+        encode_query_values(columns, values)
       end
 
     [
@@ -272,218 +245,204 @@ defmodule Xandra.Protocol.V4 do
             "got: #{inspect(other)}"
   end
 
-  defp encode_query_in_batch(%Simple{statement: statement, values: values} = simple) do
+  defp encode_query_in_batch(%Simple{statement: statement, values: values}) do
     [
       _kind = 0,
       <<byte_size(statement)::32>>,
       statement,
-      encode_query_values([], values, simple.protocol_version)
+      encode_query_values([], values)
     ]
   end
 
-  defp encode_query_in_batch(%Prepared{} = prepared) do
-    %Prepared{
-      id: id,
-      bound_columns: bound_columns,
-      values: values,
-      protocol_version: protocol_version
-    } = prepared
-
+  defp encode_query_in_batch(%Prepared{id: id, bound_columns: bound_columns, values: values}) do
     [
       _kind = 1,
       <<byte_size(id)::16>>,
       id,
-      encode_query_values(bound_columns, values, protocol_version)
+      encode_query_values(bound_columns, values)
     ]
   end
 
-  defp encode_query_values([], values, protocol_version) when is_list(values) do
-    [<<length(values)::16>>] ++ Enum.map(values, &encode_query_value(&1, protocol_version))
+  defp encode_query_values([], values) when is_list(values) do
+    [<<length(values)::16>>] ++ Enum.map(values, &encode_query_value/1)
   end
 
-  defp encode_query_values([], values, protocol_version) when is_map(values) do
+  defp encode_query_values([], values) when is_map(values) do
     parts =
       for {name, value} <- values do
         name = to_string(name)
-        [<<byte_size(name)::16>>, name, encode_query_value(value, protocol_version)]
+        [<<byte_size(name)::16>>, name, encode_query_value(value)]
       end
 
     [<<map_size(values)::16>>] ++ parts
   end
 
-  defp encode_query_values(columns, values, protocol_version) when is_list(values) do
-    encode_bound_values(columns, values, protocol_version, [<<length(columns)::16>>])
+  defp encode_query_values(columns, values) when is_list(values) do
+    encode_bound_values(columns, values, [<<length(columns)::16>>])
   end
 
-  defp encode_query_values(columns, values, protocol_version)
-       when map_size(values) == length(columns) do
+  defp encode_query_values(columns, values) when map_size(values) == length(columns) do
     parts =
       for {_keyspace, _table, name, type} <- columns do
         value = Map.fetch!(values, name)
-        [<<byte_size(name)::16>>, name, encode_query_value(type, value, protocol_version)]
+        [<<byte_size(name)::16>>, name, encode_query_value(type, value)]
       end
 
     [<<map_size(values)::16>>] ++ parts
   end
 
-  defp encode_bound_values([], [], _protocol_version, acc) do
+  defp encode_bound_values([], [], acc) do
     acc
   end
 
-  defp encode_bound_values([column | columns], [value | values], protocol_version, acc) do
+  defp encode_bound_values([column | columns], [value | values], acc) do
     {_keyspace, _table, _name, type} = column
-    acc = [acc | encode_query_value(type, value, protocol_version)]
-    encode_bound_values(columns, values, protocol_version, acc)
+    acc = [acc | encode_query_value(type, value)]
+    encode_bound_values(columns, values, acc)
   end
 
-  defp encode_query_value({type, value}, protocol_version) when is_binary(type) do
-    encode_query_value(TypeParser.parse(type), value, protocol_version)
+  defp encode_query_value({type, value}) when is_binary(type) do
+    encode_query_value(TypeParser.parse(type), value)
   end
 
-  defp encode_query_value(_type, nil, _protocol_version) do
+  defp encode_query_value(_type, nil) do
     <<-1::32>>
   end
 
-  # `:unset` value needs native protocol version 4
-  defp encode_query_value(_type, :unset, :v4) do
+  defp encode_query_value(_type, :unset) do
     <<-2::32>>
   end
 
-  defp encode_query_value(type, value, protocol_version) do
-    acc = encode_value(type, value, protocol_version)
+  defp encode_query_value(type, value) do
+    acc = encode_value(type, value)
     [<<IO.iodata_length(acc)::32>>, acc]
   end
 
-  defp encode_value(:ascii, value, _protocol_version) when is_binary(value) do
+  defp encode_value(:ascii, value) when is_binary(value) do
     value
   end
 
-  defp encode_value(:bigint, value, _protocol_version) when is_integer(value) do
+  defp encode_value(:bigint, value) when is_integer(value) do
     <<value::64>>
   end
 
-  defp encode_value(:blob, value, _protocol_version) when is_binary(value) do
+  defp encode_value(:blob, value) when is_binary(value) do
     value
   end
 
-  defp encode_value(:boolean, value, _protocol_version) do
+  defp encode_value(:boolean, value) do
     case value do
       true -> [1]
       false -> [0]
     end
   end
 
-  defp encode_value(:counter, value, _protocol_version) when is_integer(value) do
+  defp encode_value(:counter, value) when is_integer(value) do
     <<value::64>>
   end
 
-  defp encode_value(:date, %Date{} = value, _protocol_version) do
+  defp encode_value(:date, %Date{} = value) do
     value = date_to_unix_days(value)
     <<value + @unix_epoch_days::32>>
   end
 
-  defp encode_value(:date, value, _protocol_version)
-       when value in -@unix_epoch_days..(@unix_epoch_days - 1) do
+  defp encode_value(:date, value) when value in -@unix_epoch_days..(@unix_epoch_days - 1) do
     <<value + @unix_epoch_days::32>>
   end
 
-  defp encode_value(:decimal, {value, scale}, protocol_version) do
-    [encode_value(:int, scale, protocol_version), encode_value(:varint, value, protocol_version)]
+  defp encode_value(:decimal, {value, scale}) do
+    [encode_value(:int, scale), encode_value(:varint, value)]
   end
 
   # Decimal stores the decimal as "sign * coef * 10^exp", but Cassandra stores it
   # as "coef * 10^(-1 * exp).
-  defp encode_value(:decimal, decimal, protocol_version) do
+  defp encode_value(:decimal, decimal) do
     decimal_mod = Decimal
 
     if decimal_mod.decimal?(decimal) do
       %^decimal_mod{coef: coef, exp: exp, sign: sign} = decimal
-      encode_value(:decimal, {_value = sign * coef, _scale = -exp}, protocol_version)
+      encode_value(:decimal, {_value = sign * coef, _scale = -exp})
     else
       raise ArgumentError,
             "can only encode %Decimal{} structs or {value, scale} tuples as decimals"
     end
   end
 
-  defp encode_value(:double, value, _protocol_version) when is_float(value) do
+  defp encode_value(:double, value) when is_float(value) do
     <<value::64-float>>
   end
 
-  defp encode_value(:float, value, _protocol_version) when is_float(value) do
+  defp encode_value(:float, value) when is_float(value) do
     <<value::32-float>>
   end
 
-  defp encode_value(:inet, {n1, n2, n3, n4}, _protocol_version) do
+  defp encode_value(:inet, {n1, n2, n3, n4}) do
     <<n1, n2, n3, n4>>
   end
 
-  defp encode_value(:inet, {n1, n2, n3, n4, n5, n6, n7, n8}, _protocol_version) do
+  defp encode_value(:inet, {n1, n2, n3, n4, n5, n6, n7, n8}) do
     <<
       (<<n1::4-bytes, n2::4-bytes, n3::4-bytes, n4::4-bytes>>),
       (<<n5::4-bytes, n6::4-bytes, n7::4-bytes, n8::4-bytes>>)
     >>
   end
 
-  defp encode_value(:int, value, _protocol_version) when is_integer(value) do
+  defp encode_value(:int, value) when is_integer(value) do
     <<value::32>>
   end
 
-  defp encode_value({:list, [items_type]}, collection, protocol_version)
-       when is_list(collection) do
-    [<<length(collection)::32>>] ++
-      Enum.map(collection, &encode_query_value(items_type, &1, protocol_version))
+  defp encode_value({:list, [items_type]}, collection) when is_list(collection) do
+    [<<length(collection)::32>>] ++ Enum.map(collection, &encode_query_value(items_type, &1))
   end
 
-  defp encode_value({:map, [key_type, value_type]}, collection, protocol_version)
-       when is_map(collection) do
+  defp encode_value({:map, [key_type, value_type]}, collection) when is_map(collection) do
     parts =
       for {key, value} <- collection do
         [
-          encode_query_value(key_type, key, protocol_version),
-          encode_query_value(value_type, value, protocol_version)
+          encode_query_value(key_type, key),
+          encode_query_value(value_type, value)
         ]
       end
 
     [<<map_size(collection)::32>>] ++ parts
   end
 
-  defp encode_value({:set, inner_type}, %MapSet{} = collection, protocol_version) do
-    encode_value({:list, inner_type}, MapSet.to_list(collection), protocol_version)
+  defp encode_value({:set, inner_type}, %MapSet{} = collection) do
+    encode_value({:list, inner_type}, MapSet.to_list(collection))
   end
 
-  defp encode_value(:smallint, value, _protocol_version) when is_integer(value) do
+  defp encode_value(:smallint, value) when is_integer(value) do
     <<value::16>>
   end
 
-  defp encode_value(:time, %Time{} = time, _protocol_version) do
+  defp encode_value(:time, %Time{} = time) do
     value = time_to_nanoseconds(time)
     <<value::64>>
   end
 
-  defp encode_value(:time, value, _protocol_version) when value in 0..86_399_999_999_999 do
+  defp encode_value(:time, value) when value in 0..86_399_999_999_999 do
     <<value::64>>
   end
 
-  defp encode_value(:timestamp, %DateTime{} = value, _protocol_version) do
+  defp encode_value(:timestamp, %DateTime{} = value) do
     <<DateTime.to_unix(value, :millisecond)::64>>
   end
 
-  defp encode_value(:timestamp, value, _protocol_version) when is_integer(value) do
+  defp encode_value(:timestamp, value) when is_integer(value) do
     <<value::64>>
   end
 
-  defp encode_value(:tinyint, value, _protocol_version) when is_integer(value) do
+  defp encode_value(:tinyint, value) when is_integer(value) do
     <<value>>
   end
 
-  defp encode_value({:udt, fields}, value, protocol_version) when is_map(value) do
+  defp encode_value({:udt, fields}, value) when is_map(value) do
     for {field_name, [field_type]} <- fields do
-      encode_query_value(field_type, Map.get(value, field_name), protocol_version)
+      encode_query_value(field_type, Map.get(value, field_name))
     end
   end
 
-  defp encode_value(type, value, _protocol_version)
-       when type in [:uuid, :timeuuid] and is_binary(value) do
+  defp encode_value(type, value) when type in [:uuid, :timeuuid] and is_binary(value) do
     case byte_size(value) do
       16 ->
         value
@@ -511,20 +470,17 @@ defmodule Xandra.Protocol.V4 do
     end
   end
 
-  defp encode_value(type, value, _protocol_version)
-       when type in [:varchar, :text] and is_binary(value) do
+  defp encode_value(type, value) when type in [:varchar, :text] and is_binary(value) do
     value
   end
 
-  defp encode_value(:varint, value, _protocol_version) when is_integer(value) do
+  defp encode_value(:varint, value) when is_integer(value) do
     size = varint_byte_size(value)
     <<value::size(size)-unit(8)>>
   end
 
-  defp encode_value({:tuple, types}, value, protocol_version)
-       when length(types) == tuple_size(value) do
-    for {type, item} <- Enum.zip(types, Tuple.to_list(value)),
-        do: encode_query_value(type, item, protocol_version)
+  defp encode_value({:tuple, types}, value) when length(types) == tuple_size(value) do
+    for {type, item} <- Enum.zip(types, Tuple.to_list(value)), do: encode_query_value(type, item)
   end
 
   defp varint_byte_size(value) when value > 127 do
@@ -557,9 +513,7 @@ defmodule Xandra.Protocol.V4 do
     0x1003 => :truncate_failure,
     0x1100 => :write_timeout,
     0x1200 => :read_timeout,
-    # only protocol version 4
     0x1300 => :read_failure,
-    # only protocol version 4
     0x1400 => :function_failure,
     0x2000 => :invalid_syntax,
     0x2100 => :unauthorized,
@@ -575,7 +529,6 @@ defmodule Xandra.Protocol.V4 do
     end
   end
 
-  # only protocol version 4
   defp decode_error_message(:function_failure, buffer) do
     decode_string(message <- buffer)
     decode_string(_keyspace <- buffer)
@@ -672,22 +625,12 @@ defmodule Xandra.Protocol.V4 do
   # Prepared
   defp decode_result_response(
          <<0x0004::32-signed, buffer::bits>>,
-         %Prepared{protocol_version: protocol_version} = prepared,
+         %Prepared{} = prepared,
          options
        ) do
     atom_keys? = Keyword.fetch!(options, :atom_keys?)
     decode_string(id <- buffer)
-
-    # TODO push down dispatching?
-    {%{columns: bound_columns}, buffer} =
-      case protocol_version do
-        :v3 ->
-          decode_metadata(buffer, %Page{}, atom_keys?)
-
-        :v4 ->
-          decode_metadata_prepared(buffer, %Page{}, atom_keys?)
-      end
-
+    {%{columns: bound_columns}, buffer} = decode_metadata_prepared(buffer, %Page{}, atom_keys?)
     {%{columns: result_columns}, <<>>} = decode_metadata(buffer, %Page{}, atom_keys?)
     %{prepared | id: id, bound_columns: bound_columns, result_columns: result_columns}
   end
@@ -754,7 +697,6 @@ defmodule Xandra.Protocol.V4 do
     %{keyspace: keyspace, subject: subject}
   end
 
-  # only protocol version 4
   defp decode_change_options(<<buffer::bits>>, target) when target in ["FUNCTION", "AGGREGATE"] do
     decode_string(keyspace <- buffer)
     decode_string(subject <- buffer)
@@ -763,7 +705,6 @@ defmodule Xandra.Protocol.V4 do
     %{keyspace: keyspace, subject: subject, arguments: values}
   end
 
-  # only protocol version 4
   defp decode_metadata_prepared(
          <<flags::4-bytes, column_count::32-signed, pk_count::32-signed, buffer::bits>>,
          page,
@@ -819,7 +760,6 @@ defmodule Xandra.Protocol.V4 do
   end
 
   # pk = partition key
-  # only protocol version 4
   def decode_pk_index(buffer, 0, acc) do
     {Enum.reverse(acc), buffer}
   end
@@ -1044,11 +984,6 @@ defmodule Xandra.Protocol.V4 do
     decode_columns(buffer, column_count - 1, table_spec, atom_keys?, [entry | acc])
   end
 
-  defp decode_type(<<0x0000::16, buffer::bits>>) do
-    decode_string(class <- buffer)
-    {custom_type_to_native(class), buffer}
-  end
-
   defp decode_type(<<0x0001::16, buffer::bits>>) do
     {:ascii, buffer}
   end
@@ -1109,22 +1044,18 @@ defmodule Xandra.Protocol.V4 do
     {:inet, buffer}
   end
 
-  # only protocol version 4
   defp decode_type(<<0x0011::16, buffer::bits>>) do
     {:date, buffer}
   end
 
-  # only protocol version 4
   defp decode_type(<<0x0012::16, buffer::bits>>) do
     {:time, buffer}
   end
 
-  # only protocol version 4
   defp decode_type(<<0x0013::16, buffer::bits>>) do
     {:smallint, buffer}
   end
 
-  # only protocol version 4
   defp decode_type(<<0x0014::16, buffer::bits>>) do
     {:tinyint, buffer}
   end
@@ -1154,24 +1085,6 @@ defmodule Xandra.Protocol.V4 do
 
   defp decode_type(<<0x0031::16, count::16, buffer::bits>>) do
     decode_type_tuple(buffer, count, [])
-  end
-
-  # only protocol version 3
-  custom_types = %{
-    "org.apache.cassandra.db.marshal.SimpleDateType" => :date,
-    "org.apache.cassandra.db.marshal.ShortType" => :smallint,
-    "org.apache.cassandra.db.marshal.ByteType" => :tinyint,
-    "org.apache.cassandra.db.marshal.TimeType" => :time
-  }
-
-  for {class, type} <- custom_types do
-    defp custom_type_to_native(unquote(class)) do
-      unquote(type)
-    end
-  end
-
-  defp custom_type_to_native(class) do
-    raise "cannot decode custom type #{inspect(class)}"
   end
 
   defp decode_type_udt(<<buffer::bits>>, 0, acc) do
