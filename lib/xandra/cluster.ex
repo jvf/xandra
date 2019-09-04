@@ -402,7 +402,9 @@ defmodule Xandra.Cluster do
 
   @impl true
   def init({%__MODULE__{options: options} = state, nodes}) do
-    {:ok, pool_supervisor} = Supervisor.start_link([], strategy: :one_for_one, max_restarts: 0)
+    {:ok, pool_supervisor} =
+      Supervisor.start_link([], strategy: :one_for_one, max_restarts: 0, name: PoolSupervisor)
+
     node_refs = start_control_connections(nodes, options, state.autodiscovery)
     {:ok, %{state | node_refs: node_refs, pool_supervisor: pool_supervisor}}
   end
@@ -475,6 +477,7 @@ defmodule Xandra.Cluster do
     } = state
 
     options = Keyword.merge(options, address: address, port: port)
+    options = Keyword.put(options, :name, String.to_atom("Xandra.#{inspect(address)}"))
     child_spec = Supervisor.child_spec({Xandra, options}, id: address)
 
     case Supervisor.start_child(pool_supervisor, child_spec) do

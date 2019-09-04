@@ -43,7 +43,7 @@ defmodule Xandra.Cluster.ControlConnection do
       autodiscovery: autodiscovery?
     }
 
-    Connection.start_link(__MODULE__, state)
+    Connection.start_link(__MODULE__, state, name: String.to_atom("ControlConnection.#{address}"))
   end
 
   def init(state) do
