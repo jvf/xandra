@@ -545,6 +545,7 @@ defmodule Xandra.Protocol.V3 do
   end
 
   def decode_response(%Frame{kind: :ready, body: <<>>}, nil, _options) do
+    IO.inspect([kind: :ready], label: "Protocol.V3.decode_response")
     :ok
   end
 

@@ -51,11 +51,13 @@ defmodule Xandra.Cluster.ControlConnection do
   end
 
   def connect(_action, %__MODULE__{address: address, port: port, options: options} = state) do
+    IO.inspect([action: _action], label: "ControlConnection.connect")
     protocol_module = Keyword.fetch!(options, :protocol_module)
     state = %{state | protocol_module: protocol_module}
 
     case state.transport.connect(address, port, state.transport_options, @default_timeout) do
       {:ok, socket} ->
+        IO.inspect([case: :ok], label: "ControlConnection.connect")
         state = %{state | socket: socket}
         transport = state.transport
 
@@ -79,14 +81,16 @@ defmodule Xandra.Cluster.ControlConnection do
             report_peers(state, peers_or_nil)
           end
 
-          {:ok, state}
+          {:ok, state} |> IO.inspect(label: "ControlConnection.connect")
         else
           {:error, _reason} = error ->
+            IO.inspect([with: :else], label: "ControlConnection.connect")
             {:connect, :reconnect, state} = disconnect(error, state)
             {:backoff, @default_backoff, state}
         end
 
       {:error, _reason} ->
+        IO.inspect([case: :error], label: "ControlConnection.connect")
         {:backoff, @default_backoff, state}
     end
   end
@@ -206,6 +210,8 @@ defmodule Xandra.Cluster.ControlConnection do
   end
 
   defp report_event(%{cluster: cluster, buffer: buffer} = state) do
+    IO.inspect([state: state], label: "ControlConnection.report_event")
+
     case decode_frame(buffer, state.protocol_module) do
       {frame, rest} ->
         change_event = state.protocol_module.decode_response(frame)

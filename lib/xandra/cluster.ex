@@ -215,6 +215,7 @@ defmodule Xandra.Cluster do
   # Used internally by Xandra.Cluster.ControlConnection.
   @doc false
   def update(cluster, status_change) do
+    IO.inspect([cluster: cluster, status_change: status_change], label: "Cluster.update")
     GenServer.cast(cluster, {:update, status_change})
   end
 
@@ -414,6 +415,8 @@ defmodule Xandra.Cluster do
       pools: pools
     } = state
 
+    IO.inspect([pools: pools], label: "Xandra.Cluster.handle_call_checkout")
+
     if Enum.empty?(pools) do
       {:reply, {:error, :empty}, state}
     else
@@ -536,12 +539,15 @@ defmodule Xandra.Cluster do
 
   defp select_pool(:random, pools, _node_refs) do
     {_address, pool} = Enum.random(pools)
+    IO.inspect([ip: _address, pid: pool], label: :select_pool)
     pool
   end
 
   defp select_pool(:priority, pools, node_refs) do
     Enum.find_value(node_refs, fn {_node_ref, address} ->
-      Map.get(pools, address)
+      pool = Map.get(pools, address)
+      IO.inspect([ip: address, pid: pool], label: :select_pool)
+      pool
     end)
   end
 
