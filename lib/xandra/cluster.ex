@@ -503,9 +503,11 @@ defmodule Xandra.Cluster do
 
     case Supervisor.restart_child(pool_supervisor, address) do
       {:error, reason} when reason in [:not_found, :running, :restarting] ->
+        _ = Logger.warn("Restarting connection to #{inspect(address)} failed with #{reason}")
         state
 
       {:ok, pool} ->
+        _ = Logger.debug("Restarted connection to #{inspect(address)}")
         %{state | pools: Map.put(pools, address, pool)}
     end
   end
